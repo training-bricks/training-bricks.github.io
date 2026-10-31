@@ -135,6 +135,16 @@ While HR climbs it is projected 30 s ahead with its slope over the last 30 s, so
 - **Warm-up ramps end early** when the next step is aerobic (Z1–Z2): once HR has been at or above the top of Z1 for 5 s, the warm-up is over. Before harder steps the whole warm-up is kept.
 - The same correction must be asked for 10 s in a row, and at least 25 s pass between adjustments (60 s between two rises). Nothing is adjusted in the first 45 s of each step (2.5 min on HR-zone steps from Z3 up), because HR takes time to respond. Every adjustment is logged with its reason.
 
+## Aerobic runs: decoupling and VT1 (#4)
+
+At the end of a **steady aerobic run** (every step that is not the warm-up or the cool-down is in Z1–Z2, no test; a free session counts too) with at least 20 min of steady part, the note and **Profile → Aerobic runs** show (`src/physiology/aerobic.js`):
+
+- **Pa:HR decoupling:** how much efficiency (flat-equivalent speed ÷ HR) falls from the first half of the steady part to the second. The steady part leaves out the warm-up, the cool-down, pauses and the first 5 min of the main steps. Under 5 % the aerobic base held for that pace; 5–10 % moderate; over 10 % the pace was too much that day. With HR control, HR stays flat, so it shows as the speed dropping. Intervals.icu computes its own decoupling over the whole activity, so the numbers differ.
+- **HR at VT1 of the run** (chest strap with RR): where α1 crosses 0.75 on a straight line α1 = f(HR), as in the threshold test. The warm-up's rise gives the line its slope. The line is fitted on the median α1 of each 3 bpm band, so the long minutes at the run's HR do not outweigh the rest. It needs at least 5 bands over 15 bpm and r² ≥ 0.6. Otherwise only the median α1 at the run's HR is shown.
+- It is an estimate, not a test: α1 also falls with time and fatigue and varies from day to day. Profile shows the **trend**, the median VT1 of the last 5 runs that have one; if it drifts away from your zones, repeat the threshold test or review the zones.
+
+The last 50 runs are kept in the `runs` setting.
+
 ## Threshold test (α1)
 
 The featured **Threshold test (α1)** finds your aerobic (VT1) and anaerobic (VT2) thresholds from DFA α1, without going to exhaustion. It needs a chest strap that sends RR intervals.
@@ -185,6 +195,7 @@ Results are kept in **Profile › Threshold tests** (last 20, in this browser). 
 | `src/ui/chart-axes.js` | The chart's left axis, one object per kind (pace for runs, power for bike workouts): zones, domain, block heights, ticks, unit, tooltip |
 | `src/session/runner.js` | Runs the session: steps, speed and incline commands, samples, HR and α1 adjustments, threshold test. No DOM or UI imports: it reports through events (`change`, `tick`, `log`, `note`, `beep`, `active`, `test`) and `tick(now)` takes the clock, so it runs in Node tests |
 | `src/session/test-history.js` | Threshold test history (newest first, 20 kept) and how a result reads |
+| `src/session/run-history.js` | Aerobic run history (newest first, 50 kept) and how a run reads |
 | `src/session/policies.js` | How each sport drives its device: a run drives the treadmill (speed, incline, belt), a ride the smart trainer (power, pedaling) |
 | `src/session/hr-control.js` | Speed (or incline) adjustment by HR: projection, proportional correction and the α1 guard |
 | `src/session/live.js` | Live device readings: speed, incline, HR, console state, RR intervals and α1 |
@@ -200,6 +211,7 @@ Results are kept in **Profile › Threshold tests** (last 20, in this browser). 
 | `src/physiology/zones.js` | Profile, HR and pace zones, cycling power and HR zones, HR ranges of each step and resolution of relative paces |
 | `src/physiology/hrv.js` | RR intervals: artifact cleanup and DFA α1 |
 | `src/physiology/thresholds.js` | VT1 and VT2 from the threshold test (α1 vs HR fit, flat-equivalent speed) |
+| `src/physiology/aerobic.js` | Steady aerobic runs: Pa:HR decoupling, HR at VT1 from α1 and its trend |
 | `src/workouts/steps.js` | Turns the Intervals.icu `workout_doc` into steps (shared walk: repeats, labels, durations, incline); targets are the plan as written, the session clamps what it sends to the treadmill |
 | `src/workouts/run.js`, `src/workouts/ride.js` | Per-sport step targets: speed and HR caps/targets for running, watts and power zones for cycling |
 | `src/workouts/format.js` | Pace and duration formatting |
@@ -230,7 +242,7 @@ Everything the app keeps in the browser is listed in `src/lib/settings.js` and s
 
 | Setting | What |
 |---|---|
-| `profile`, `athlete`, `wellness`, `tests` | Threshold pace / LTHR / max HR and cycling settings, the Intervals.icu account, latest wellness, threshold test history |
+| `profile`, `athlete`, `wellness`, `tests`, `runs` | Threshold pace / LTHR / max HR and cycling settings, the Intervals.icu account, latest wellness, threshold test history, aerobic run history |
 | `tab`, `workout`, `libFilter`, `homeSport` | Last tab, last library workout, library filters, Home sport filter |
 | `theme`, `lang` | Color palette and language |
 | `intervalsKey` | The Intervals.icu API key (**secret**: never logged or shown) |

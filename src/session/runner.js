@@ -4,7 +4,7 @@
  * analyzes the threshold test when it ends.
  *
  * No DOM and no UI imports: what happens is reported through `events`
- * ('change', 'tick', 'log', 'note', 'beep', 'active', 'test'), and the
+ * ('change', 'tick', 'log', 'note', 'beep', 'active', 'test', 'run'), and the
  * screens subscribe. tick(now) takes the clock as an argument for tests.
  */
 
@@ -15,6 +15,8 @@ import { analyzeRamp } from '../physiology/thresholds.js';
 import { hrDecision, hrSlope, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM } from './hr-control.js';
 import { live, rrState, rrActive, updateAlpha } from './live.js';
 import { addTest, testText } from './test-history.js';
+import { addRun, runText } from './run-history.js';
+import { aerobicSummary } from '../physiology/aerobic.js';
 import { policyFor, isStale, powerAt, POLICIES } from './policies.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
@@ -27,6 +29,7 @@ import { t } from '../i18n/index.js';
  * - 'beep' { freq, seconds }: step changes and the last seconds of a step
  * - 'active' true | false: a session started, or ended / was cancelled (wake lock)
  * - 'test' { result }: a threshold test was analyzed and saved
+ * - 'run' { summary }: a steady aerobic run's metrics were saved (#4)
  */
 export const events = createEmitter();
 const log = (kind, text) => events.emit('log', { kind, text });
@@ -270,6 +273,8 @@ export function finish(message) {
   if (session.testStart != null) {
     session.testEnd ??= session.totalElapsed;
     saveTestResult();
+  } else if (policy().kind === 'treadmill') {
+    saveRunMetrics();
   }
   changed();
   beep(520, 0.6);
@@ -427,6 +432,20 @@ function saveTestResult() {
   log('info', `Threshold test: ${text} (r² ${result.r2}, ${result.points} points)`);
   note(` ${t('tests.result', { result: text })}`, true);
   events.emit('test', { result });
+}
+
+/**
+ * Steady aerobic runs (#4): Pa:HR decoupling and HR at VT1 from α1, saved
+ * to the run history and told in the note. Nothing for other sessions.
+ */
+function saveRunMetrics() {
+  const summary = aerobicSummary(session.samples, session.steps);
+  if (!summary) return;
+  addRun({ name: session.event?.name ?? null, ...summary });
+  const text = runText(summary);
+  log('info', `Aerobic run: ${text} (Pa:HR ${summary.decoupling.first.kmh} km/h at ${summary.decoupling.first.hr} → ${summary.decoupling.second.kmh} at ${summary.decoupling.second.hr}${summary.vt1 ? `; VT1 r² ${summary.vt1.r2}, ${summary.vt1.bands} HR bands` : ''})`);
+  note(` ${t('aerobic.result', { result: text })}`, true);
+  events.emit('run', { summary });
 }
 
 /**

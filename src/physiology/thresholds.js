@@ -14,12 +14,13 @@ const MIN_POINTS = 12;          // α1 values (one every 5 s: a minute's worth)
 const MIN_R2 = 0.6;             // below this α1 did not follow HR (noisy signal)
 const FIT_RANGE = [0.3, 1.1];   // outside it the α1–HR line bends
 const MAX_EXTRAPOLATE = 0.1;    // VT2 may be extrapolated this far below the lowest α1
-const POINT_EVERY_S = 5;        // α1 is recomputed every 5 s
+export const POINT_EVERY_S = 5; // α1 is recomputed every 5 s
 
 /** Flat speed with the same cost (ACSM running equation: 0.2·v + 0.9·v·grade). */
 export const flatKmh = (kmh, inclinePct) => kmh * (1 + (4.5 * inclinePct) / 100);
 
-function fit(xs, ys) {
+/** Least-squares line y = icpt + slope · x, with its r². */
+export function fit(xs, ys) {
   const n = xs.length;
   const mx = xs.reduce((a, v) => a + v, 0) / n;
   const my = ys.reduce((a, v) => a + v, 0) / n;
