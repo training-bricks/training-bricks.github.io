@@ -44,6 +44,8 @@ export function every(ms, fn) {
   (async () => {
     while (!stopped) {
       await sleep(ms);
+      // Stopped while waiting: no last call (a disconnected simulator kept sending one reading)
+      if (stopped) break;
       try { fn(); } catch (err) { console.error(err); }
     }
   })();

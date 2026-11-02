@@ -55,6 +55,7 @@ export default {
   'library.noMatch': 'Aucune séance ne correspond à ces filtres.',
   'library.count': '{shown} sur {total}',
   'library.hrTag': 'La vitesse peut suivre votre fréquence cardiaque',
+  'library.hrTagRide': 'Les watts peuvent suivre votre fréquence cardiaque',
 
   // workout
   'workout.go': 'Aller à la séance (Course ou Vélo)',
@@ -73,6 +74,9 @@ export default {
   'workout.noFtp': 'Il manque la FTP dans Intervals.icu : sans elle, les étapes n’ont pas de watts.',
   'workout.noThreshold': 'Il manque l’allure seuil dans le Profil : sans elle, les étapes n’ont pas de vitesse.',
   'workout.hrOn': 'Les étapes longues suivent leur zone de FC (la vitesse part de l’allure prévue) ; les courtes gardent leur allure.',
+  'workout.hrAdjustRide': 'Ajuster les watts selon la FC',
+  'workout.hrAdjustRideHelp': 'Les étapes longues suivent leur zone de FC au lieu des watts',
+  'workout.hrOnRide': 'Les étapes longues suivent leur zone de FC (les watts partent du plan) ; les courtes gardent leurs watts.',
 
   // step
   'step.zonePace': 'allure Z{zone}',
@@ -123,7 +127,7 @@ export default {
   'run.note.runningFree': 'Séance libre en cours.',
   'run.note.paused': 'En pause : le tapis est arrêté. Appuyez sur START sur la console pour continuer.',
   'run.note.noThreshold': 'Il manque l’allure seuil dans le Profil : sans elle, cette séance n’a pas de vitesses.',
-  'run.note.bikeWorkout': 'C’est une séance de vélo : il faut un home trainer, pas encore pris en charge.',
+  'run.note.bikeWorkout': 'C’est une séance de vélo : elle se fait sur la page Vélo, avec un home trainer.',
   'run.note.safetyKey': 'Clé de sécurité absente : placez-la sur la console.',
   'run.target': 'cible {value}',
   'run.hrFromConsole': 'Fréquence cardiaque (de la console)',
@@ -151,12 +155,8 @@ export default {
   'alpha.noValue': 'pas de valeur',
 
   // ride
-  'ride.smartTrainer': 'Home trainer connecté',
   'ride.power': 'Puissance',
   'ride.cadence': 'Cadence',
-  'ride.speed': 'Vitesse',
-  'ride.ergTarget': 'Cible ERG',
-  'ride.wTarget': 'W cible',
   'ride.erg': 'ERG',
   'ride.plus5w': '+5 W',
   'ride.powerUp': 'Augmenter la cible de 5 W',
@@ -165,10 +165,17 @@ export default {
   'ride.resistance': 'Résistance',
   'ride.resistanceUp': 'Augmenter la résistance de 5 %',
   'ride.resistanceDown': 'Baisser la résistance de 5 %',
-  'ride.manualNote': 'Contrôle manuel : les séances sur home trainer arriveront plus tard.',
-  'ride.pick': 'Choisissez une séance de vélo dans Accueil pour la voir ici.',
   'ride.noFtp': 'Il manque la FTP dans Intervals.icu : sans elle, le graphique ne montre que la forme de la séance.',
-  'ride.later': 'La faire sur le home trainer arrivera plus tard : pour l’instant cette page montre la séance, et un home trainer connecté se pilote à la main.',
+  'ride.freeRide': 'Sortie libre',
+  'ride.finish': 'Terminer (libère le home trainer)',
+  'ride.note.pick': 'Choisissez une séance de vélo (ou aucune) et appuyez sur Démarrer.',
+  'ride.note.connect': 'Connectez un home trainer connecté pour commencer.',
+  'ride.note.armed': 'Commencez à pédaler : la séance démarre dès que la cadence dépasse 20 rpm.',
+  'ride.note.running': 'Séance en cours : le home trainer tient les watts de chaque étape (ERG).',
+  'ride.note.runningFree': 'Sortie libre en cours : réglez les watts avec + et −.',
+  'ride.note.paused': 'En pause : pédalez pour continuer.',
+  'ride.note.ended': 'Séance terminée. Home trainer libéré.',
+  'ride.note.runWorkout': 'C’est une séance de course : elle se fait sur la page Course, avec un tapis.',
   'ride.note.complete': 'Séance terminée. Home trainer libéré.',
 
   // devices
@@ -196,6 +203,7 @@ export default {
   'chart.aria': 'Vitesse, inclinaison et FC de la séance sur la séance prévue',
   'chart.noThreshold': 'Il manque l’allure seuil dans le Profil : le fond ne montre que la forme de la séance',
   'chart.noWorkout': 'Sans séance : les courbes apparaissent dès que le tapis bouge',
+  'chart.noWorkoutRide': 'Sans séance : les courbes apparaissent dès que vous pédalez',
   'chart.pace': 'allure',
   'chart.incline': 'inclinaison',
   'chart.hrCap': 'FC maximale',

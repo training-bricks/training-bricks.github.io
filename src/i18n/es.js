@@ -55,6 +55,7 @@ export default {
   'library.noMatch': 'Ningún entrenamiento coincide con esos filtros.',
   'library.count': '{shown} de {total}',
   'library.hrTag': 'La velocidad puede seguir tu frecuencia cardiaca',
+  'library.hrTagRide': 'Los vatios pueden seguir tu frecuencia cardiaca',
 
   // workout
   'workout.go': 'Ir al entrenamiento (Correr o Bici)',
@@ -73,6 +74,9 @@ export default {
   'workout.noFtp': 'Falta el FTP en Intervals.icu: sin él, los pasos no tienen vatios.',
   'workout.noThreshold': 'Falta el ritmo umbral en el Perfil: sin él, los pasos no tienen velocidad.',
   'workout.hrOn': 'Los pasos largos siguen su zona de FC (la velocidad empieza en el ritmo planificado); los cortos mantienen su ritmo.',
+  'workout.hrAdjustRide': 'Ajustar los vatios por FC',
+  'workout.hrAdjustRideHelp': 'Los pasos largos siguen su zona de FC en lugar de los vatios',
+  'workout.hrOnRide': 'Los pasos largos siguen su zona de FC (los vatios empiezan en los del plan); los cortos mantienen sus vatios.',
 
   // step
   'step.zonePace': 'ritmo Z{zone}',
@@ -123,7 +127,7 @@ export default {
   'run.note.runningFree': 'Sesión libre en curso.',
   'run.note.paused': 'En pausa: la banda está detenida. Pulsa START en la consola para seguir.',
   'run.note.noThreshold': 'Falta el ritmo umbral en el Perfil: sin él, este entrenamiento no tiene velocidades.',
-  'run.note.bikeWorkout': 'Es un entrenamiento de bici: necesita un rodillo, que todavía no se puede usar.',
+  'run.note.bikeWorkout': 'Es un entrenamiento de bici: se hace en la página Bici, con un rodillo inteligente.',
   'run.note.safetyKey': 'Falta la llave de seguridad: colócala en la consola.',
   'run.target': 'objetivo {value}',
   'run.hrFromConsole': 'Frecuencia cardiaca (de la consola)',
@@ -151,12 +155,8 @@ export default {
   'alpha.noValue': 'sin valor',
 
   // ride
-  'ride.smartTrainer': 'Rodillo inteligente',
   'ride.power': 'Potencia',
   'ride.cadence': 'Cadencia',
-  'ride.speed': 'Velocidad',
-  'ride.ergTarget': 'Objetivo ERG',
-  'ride.wTarget': 'W objetivo',
   'ride.erg': 'ERG',
   'ride.plus5w': '+5 W',
   'ride.powerUp': 'Subir el objetivo 5 W',
@@ -165,10 +165,17 @@ export default {
   'ride.resistance': 'Resistencia',
   'ride.resistanceUp': 'Subir la resistencia 5 %',
   'ride.resistanceDown': 'Bajar la resistencia 5 %',
-  'ride.manualNote': 'Control manual: los entrenamientos en el rodillo llegarán más adelante.',
-  'ride.pick': 'Elige un entrenamiento de bici en Inicio para verlo aquí.',
   'ride.noFtp': 'Falta el FTP en Intervals.icu: sin él, la gráfica solo muestra la forma del entrenamiento.',
-  'ride.later': 'Hacerlo en el rodillo llegará más adelante: por ahora esta página muestra el entrenamiento, y un rodillo conectado se puede controlar a mano.',
+  'ride.freeRide': 'Salida libre',
+  'ride.finish': 'Terminar (libera el rodillo)',
+  'ride.note.pick': 'Elige un entrenamiento de bici (o ninguno) y pulsa Empezar.',
+  'ride.note.connect': 'Conecta un rodillo inteligente para empezar.',
+  'ride.note.armed': 'Empieza a pedalear: el entrenamiento arranca en cuanto la cadencia pasa de 20 rpm.',
+  'ride.note.running': 'Entrenamiento en curso: el rodillo mantiene los vatios de cada paso (ERG).',
+  'ride.note.runningFree': 'Salida libre en curso: ajusta los vatios con + y −.',
+  'ride.note.paused': 'En pausa: pedalea para seguir.',
+  'ride.note.ended': 'Sesión terminada. Rodillo liberado.',
+  'ride.note.runWorkout': 'Es un entrenamiento de carrera: se hace en la página Correr, con una caminadora.',
   'ride.note.complete': 'Entrenamiento completado. Rodillo liberado.',
 
   // devices
@@ -196,6 +203,7 @@ export default {
   'chart.aria': 'Velocidad, inclinación y FC de la sesión sobre el entrenamiento planificado',
   'chart.noThreshold': 'Falta el ritmo umbral en el Perfil: el fondo solo muestra la forma del entrenamiento',
   'chart.noWorkout': 'Sin entrenamiento: las líneas aparecen cuando la banda empieza a moverse',
+  'chart.noWorkoutRide': 'Sin entrenamiento: las líneas aparecen en cuanto empiezas a pedalear',
   'chart.pace': 'ritmo',
   'chart.incline': 'inclinación',
   'chart.hrCap': 'FC máxima',

@@ -125,6 +125,13 @@ export function paceZoneOf(zones, kmh) {
   return z ? z.z : zones.pace.length;
 }
 
+/** Power zone (1..n) a wattage belongs to. */
+export function powerZoneOf(zones, watts) {
+  if (!zones?.power?.length || !(watts > 0)) return null;
+  const z = zones.power.find((p) => watts <= p.hi);
+  return z ? z.z : zones.power.length;
+}
+
 /** HR range [lo, hi] of an Intervals step's `hr` target. */
 export function hrTargetRange(zones, hr, resolved) {
   if (hr && zones?.hr.length) {

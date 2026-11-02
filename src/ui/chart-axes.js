@@ -5,7 +5,7 @@
  * DOM: tested in Node. Adding an axis (e.g. live cadence) = one more object.
  */
 import { formatPace } from '../workouts/format.js';
-import { paceZoneOf } from '../physiology/zones.js';
+import { paceZoneOf, powerZoneOf } from '../physiology/zones.js';
 import { t } from '../i18n/index.js';
 
 // Candidate paces for the left axis (s/km)
@@ -67,10 +67,12 @@ export const paceAxis = {
 export const powerAxis = {
   key: 'power',
   zonesOf: (z) => z?.power,
-  /** Watts of every step (and aligned HR). */
-  domain({ plan, hrLeft = [], floor }) {
+  /** Watts of every step, the watts ridden, and aligned HR. */
+  domain({ plan, samples = [], hrLeft = [], floor }) {
     const w = plan.flatMap((p) => (p.power ? [p.power.lo, p.power.hi] : []));
-    w.push(...hrLeft);
+    w.push(...samples.map((s) => s.power).filter((v) => v > 0), ...hrLeft);
+    if (!w.length) return { lo: 0, hi: 250 };   // a free ride before the first watts
+    // Aligned HR may reach below 0 W (a low HR at the start): room for its line, no ticks there
     return { lo: Math.min(...w) * floor, hi: Math.max(...w) * 1.08 };
   },
   /** A ramp goes from lo to hi; a steady step sits in the middle of its range. */
@@ -80,12 +82,12 @@ export const powerAxis = {
     return p.ramp ? [p.power.lo, p.power.hi] : [mid, mid];
   },
   ticks(dom, y, { top, bottom }) {
-    return niceTicks(dom.lo, dom.hi, 4).ticks
+    return niceTicks(Math.max(0, dom.lo), dom.hi, 4).ticks
       .map((v) => ({ y: y(v), label: String(v) }))
       .filter((t) => t.y >= top + 8 && t.y <= bottom - 4);
   },
   unit: () => 'W',
-  chip: () => null,
+  chip: (last, z) => (last ? powerZoneOf(z, last.power) : null),
   planRows(p) {
     if (!p.power) return null;
     const { lo, hi } = p.power;
@@ -93,5 +95,8 @@ export const powerAxis = {
   },
 };
 
-/** Power for a bike workout with cycling zones; pace otherwise. */
-export const leftAxisFor = (zones, plan) => (zones?.power?.length && plan.some((p) => p.power) ? powerAxis : paceAxis);
+/**
+ * Power for a bike workout with cycling zones, or for a free ride (cycling
+ * zones carry no pace); pace otherwise.
+ */
+export const leftAxisFor = (zones, plan) => (zones?.power?.length && (plan.some((p) => p.power) || (!plan.length && !zones.pace?.length)) ? powerAxis : paceAxis);

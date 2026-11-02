@@ -5,17 +5,22 @@ const text = (v) => (v == null ? '' : /[",\n]/.test(v) ? `"${String(v).replace(/
 
 /**
  * CSV of the session samples (the chart's table view). Ride samples have no
- * incline (empty). The last columns tell what the HR control did (#10): the
- * step, the HR range it followed, the km/h HR added or removed, and the
- * reason on the second speed changed.
+ * pace, incline nor target speed (empty) and fill the power columns. The control
+ * columns tell what the HR control did (#10): the step, the HR range it
+ * followed, what HR added or removed (km/h on a run, W on a ride), and the
+ * reason on the second the target changed.
  */
 export function samplesToCsv(samples) {
-  const head = 'time_s,speed_kmh,pace_min_km,target_kmh,incline_pct,hr_bpm,distance_m,alpha1,rr_ms,step,hr_lo,hr_hi,hr_adjust_kmh,reason';
-  const rows = samples.map((s) => [
-    Math.round(s.elapsed), (s.speed ?? 0).toFixed(2), formatPace(s.speed), s.target ?? '',
-    s.incline != null ? s.incline.toFixed(1) : '', s.hr ?? '', (s.distance ?? 0).toFixed(1),
-    s.alpha1 ?? '', (s.rr || []).join(';'), // that second's RRs, separated by ;
-    s.step ?? '', s.hrLo ?? '', s.hrHi ?? '', s.hrAdjust != null ? s.hrAdjust.toFixed(1) : '', text(s.reason),
-  ].join(','));
+  const head = 'time_s,speed_kmh,pace_min_km,target_kmh,incline_pct,hr_bpm,distance_m,alpha1,rr_ms,step,hr_lo,hr_hi,hr_adjust,reason,power_w,cadence_rpm,target_w';
+  const rows = samples.map((s) => {
+    const ride = s.power !== undefined || s.cadence !== undefined;
+    return [
+      Math.round(s.elapsed), (s.speed ?? 0).toFixed(2), ride ? '' : formatPace(s.speed), ride ? '' : s.target ?? '',
+      s.incline != null ? s.incline.toFixed(1) : '', s.hr ?? '', (s.distance ?? 0).toFixed(1),
+      s.alpha1 ?? '', (s.rr || []).join(';'), // that second's RRs, separated by ;
+      s.step ?? '', s.hrLo ?? '', s.hrHi ?? '', s.hrAdjust != null ? s.hrAdjust.toFixed(ride ? 0 : 1) : '', text(s.reason),
+      s.power ?? '', s.cadence ?? '', ride ? s.target ?? '' : '',
+    ].join(',');
+  });
   return [head, ...rows].join('\n');
 }

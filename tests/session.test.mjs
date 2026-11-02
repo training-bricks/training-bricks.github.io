@@ -85,3 +85,16 @@ test('#10 α1 guard: the veto (no rise) also holds with HR in Z1, but not in the
   assert.equal(hrDecision({ ...cap, alphaVeto: true }).delta, 0);                   // nor gives back
   assert.equal(hrDecision({ ...cap, giveBack: false }).delta, 0);                   // the cool-down does not give back
 });
+
+test('HR control (#8): the same decision in watts with the POWER actuator', async () => {
+  const { POWER } = await import('../src/session/hr-control.js');
+  const z2 = { mode: 'target', lo: 131, hi: 145, hrAdjust: 0, aim: AEROBIC_AIM };   // aim 136.6
+  assert.equal(hrDecision({ ...z2, hr: 150, slope: 0 }, POWER).delta, -15);      // far over: the largest step
+  assert.equal(hrDecision({ ...z2, hr: 142, slope: 0 }, POWER).delta, -6);       // 2.4 bpm past aim 136.6 + 3 × 2.5 W
+  assert.equal(hrDecision({ ...z2, hr: 139, slope: 0 }, POWER).delta, 0);        // on target (136.6 ± 3)
+  assert.equal(hrDecision({ ...z2, hr: 140, slope: 0 }, POWER).delta, -3);       // just past it: the smallest step
+  assert.equal(hrDecision({ ...z2, hr: 120, slope: 0 }, POWER).delta, 5);        // rises at most 5 W
+  assert.equal(hrDecision({ ...z2, hr: 120, slope: 0.1 }, POWER).delta, 0);      // not while HR climbs
+  assert.deepEqual(hrDecision({ ...z2, hr: 138, slope: 0, alphaVeto: true, alphaDrop: true }, POWER), { delta: -5, reason: 'α1 below 0.75 with HR 138', alpha: true });
+  assert.ok(Number.isInteger(hrDecision({ ...z2, hr: 143.3, slope: 0 }, POWER).delta), 'whole watts');
+});

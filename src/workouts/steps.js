@@ -76,7 +76,7 @@ export function flattenWorkout(doc, { position = 'mid', defaultIncline = 1, zone
       }
 
       const targets = step.power
-        ? { speedStart: null, speedEnd: null, ...rideTargets(step, { zones }) }
+        ? { speedStart: null, speedEnd: null, ...rideTargets(step, { zones, hrTargets }) }
         : { power: null, ...runTargets(step, { position, zones, hrTargets }) };
       const kind = step.warmup ? 'Warm-up' : step.cooldown ? 'Cooldown' : 'Work'; // also an id (followsHr)
 
@@ -92,6 +92,7 @@ export function flattenWorkout(doc, { position = 'mid', defaultIncline = 1, zone
         hasTarget: targets.speedStart != null,
         ramp: !!step.ramp,
         warmup: !!step.warmup,
+        cooldown: !!step.cooldown,
         test: !!step.test,
         hr: targets.hr,
         power: targets.power,  // bike steps: { lo, hi } W
@@ -112,7 +113,7 @@ export function flattenWorkout(doc, { position = 'mid', defaultIncline = 1, zone
  */
 export function followsHr(steps) {
   if (steps.some((s) => s.hr?.mode === 'target')) return true;
-  const main = steps.filter((s) => s.kind === 'Work' && s.hasTarget);
+  const main = steps.filter((s) => s.kind === 'Work' && (s.hasTarget || s.power));
   const long = main.filter((s) => (s.duration || 0) >= HR_STEP_MIN_S);
   return long.length > 0 &&
     main.every((s) => s.zone != null && s.zone <= (long.includes(s) ? 3 : 2));

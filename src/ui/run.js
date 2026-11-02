@@ -1,69 +1,26 @@
 /**
- * Run tab: the live numbers (pace, incline, distance, time, HR, α1), the
- * session buttons, the chart, and export or upload when the session ends.
+ * Run tab: the treadmill session. The chart and the shared half of the
+ * dashboard (distance, time, HR, α1, session buttons, export and upload) come
+ * from session-screen.js; this page adds pace and incline with their + and −
+ * buttons, the treadmill's notes and the safety on closing the page.
  */
 
-import { $, download } from '../lib/dom.js';
-import { formatPace, formatDuration } from '../workouts/steps.js';
-import { hrZoneOf } from '../physiology/zones.js';
-import { alphaState } from '../physiology/hrv.js';
-import { buildTcx } from '../export/tcx.js';
-import { samplesToCsv } from '../export/csv.js';
-import * as intervals from '../services/intervals.js';
-import { live, rrState, rrActive } from '../session/live.js';
-import { session, events as sessionEvents, isActive, currentStep, applyStep, pushTarget, start, endSession, cancel, pauseOnClose } from '../session/runner.js';
+import { $ } from '../lib/dom.js';
+import { formatPace } from '../workouts/steps.js';
+import { live } from '../session/live.js';
+import { session, events as sessionEvents, isActive, currentStep, pushTarget, pauseOnClose } from '../session/runner.js';
 import { wakeError, requestWakeLock, releaseWakeLock, initWakeLock } from '../session/wake-lock.js';
 import { beep } from '../lib/sound.js';
 import { highlightSteps } from './workout.js';
 import { log, renderConsole } from './debug.js';
+import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons } from './session-screen.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
 
-// ---------------------------------------------------------------------------
-// Chart
-// ---------------------------------------------------------------------------
-
-/** Estimated duration of a step (distance steps are converted with their target). */
-function plannedSeconds(step) {
-  if (step.duration) return step.duration;
-  const kmh = step.hasTarget ? (step.speedStart + step.speedEnd) / 2 : 8;
-  return step.distance ? step.distance / (kmh / 3.6) : 60;
-}
-
-/**
- * Plan blocks in session time. Steps already done use their actual start and
- * end (skips, pauses or distance steps); the rest are chained with their
- * planned duration.
- */
-export function planTimeline(planOnly = false) {
-  const active = !planOnly && session.state !== 'idle';
-  const steps = active ? session.steps : app.state.selection?.steps || [];
-  const out = [];
-  let t = 0;
-  steps.forEach((step, i) => {
-    const started = active ? session.stepStarts[i] : undefined;
-    const t0 = started ?? t;
-    let t1 = session.stepStarts[i + 1];
-    if (t1 == null || !active) {
-      t1 = t0 + plannedSeconds(step);
-      if (active && i === session.stepIdx && session.state !== 'done') {
-        // Current step: what is left given its progress
-        t1 = Math.max(session.totalElapsed, t0 + plannedSeconds(step));
-      }
-    }
-    out.push({
-      t0, t1, speedStart: step.speedStart, speedEnd: step.speedEnd, power: step.power, ramp: step.ramp, incline: step.incline,
-      zone: step.zone, hr: step.hr, intensity: step.intensity,
-    });
-    t = t1;
-  });
-  return out;
-}
+const bar = () => $('runBar').el;
 
 export function updateChart() {
-  const event = session.state !== 'idle' ? session.event : app.state.selection?.event;
-  $('chart').update({ plan: planTimeline(), samples: session.samples, elapsed: session.totalElapsed, zones: app.zonesFor(event) });
-  $('chart').heading = event?.name || t('run.freeSession');
+  updateSessionChart($('chart'), 'run', t('run.freeSession'));
 }
 
 // ---------------------------------------------------------------------------
@@ -75,39 +32,31 @@ export function updateControls() {
   const connected = !!dev?.connected;
   const caps = dev?.capabilities ?? {};
   const active = ['armed', 'running', 'paused'].includes(session.state);
-  // Rides need the bike trainer, which is not supported yet
-  const ride = app.state.selection?.event?.sport === 'ride';
-  $('btnStart').disabled = !connected || active || ride;
-  const startLabel = app.state.selection ? t('run.startWorkout') : t('run.startFreeSession');
-  $('btnStart').title = startLabel;
-  $('btnStart').setAttribute('aria-label', startLabel);
-  $('btnSkip').disabled = !(session.steps.length && (session.state === 'running' || session.state === 'paused'));
-  $('btnFinish').disabled = !active;
-  const finished = session.state === 'done' && session.samples.length > 0;
-  $('btnExport').disabled = !finished;
-  $('btnUpload').disabled = !(finished && session.samples.length > 10 && intervals.getApiKey() && !session.uploaded);
-  $('btnUpload').title = intervals.getApiKey() ? t('run.uploadWhenFinished') : t('run.uploadSignIn');
-  $('btnUpload').setAttribute('aria-label', t('run.upload'));
+  // Bike workouts run on the Ride page
+  const ride = selectedSport() === 'ride';
+  updateSessionButtons(bar(), 'run', { canStart: connected && !ride, finishLabel: t('run.finish') });
   $('wPosition').disabled = $('wIncline').disabled = $('wHrAdjust').disabled = active;
   for (const list of document.querySelectorAll('bw-workout-list')) list.disabled = active;
   document.querySelectorAll('[data-speed],[data-incline]').forEach((b) => { b.disabled = !connected; });
   // Controls the connected treadmill has (incline buttons only if it can tilt)
   $('mInclineCtl').classList.toggle('hidden', connected && caps.incline === false);
 
+  const own = ownSession('run');
+  const state = own || session.state === 'idle' ? session.state : 'idle';
   const notes = {
     idle: connected ? t('run.note.pick') : t('run.note.connect'),
     armed: caps.remoteStart ? t('run.note.armedRemote') : t('run.note.armed'),
     running: session.steps.length ? t('run.note.running') : t('run.note.runningFree'),
     paused: t('run.note.paused'),
   };
-  if (notes[session.state]) $('sessionNote').textContent = notes[session.state];
-  if (wakeError && ['armed', 'running', 'paused'].includes(session.state)) {
+  if (notes[state]) $('sessionNote').textContent = notes[state];
+  if (wakeError && own && active) {
     $('sessionNote').textContent += ` ${wakeError}`;
   }
-  if (session.state === 'idle' && app.state.selection?.needsProfile) {
+  if (state === 'idle' && app.state.selection?.needsProfile && !ride) {
     $('sessionNote').textContent = t('run.note.noThreshold');
   }
-  if (session.state === 'idle' && ride) {
+  if (state === 'idle' && ride) {
     $('sessionNote').textContent = t('run.note.bikeWorkout');
   }
   if (connected && live.console.alerts?.includes('safety-key-missing')) {
@@ -119,46 +68,29 @@ export function updateControls() {
 // Screen
 // ---------------------------------------------------------------------------
 export function render() {
+  const own = ownSession('run');
   $('mPace').textContent = formatPace(live.speed);
-  const offTarget = session.target != null && session.state === 'running' && Math.abs(live.speed - session.target) > 0.15;
+  const offTarget = own && session.target != null && session.state === 'running' && Math.abs(live.speed - session.target) > 0.15;
   $('mPace').classList.toggle('off-target', offTarget);
   $('mSpeedSub').textContent = `${live.speed.toFixed(1)} km/h` +
-    (session.target != null ? ` · ${t('run.target', { value: formatPace(session.target) })}` : '');
+    (own && session.target != null ? ` · ${t('run.target', { value: formatPace(session.target) })}` : '');
   $('mIncline').textContent = live.incline.toFixed(1);
-  const planned = ['running', 'paused'].includes(session.state) ? currentStep()?.incline : null;
-  $('mInclineSub').textContent = planned != null ? t('run.target', { value: `${planned} %` }) : '\u00a0';
-  $('mDist').textContent = (session.totalDist / 1000).toFixed(2);
-  $('mTime').textContent = formatDuration(session.totalElapsed);
-  const hz = hrZoneOf(app.state.zones, live.hr);
-  $('mHr').textContent = live.hr || '--';
-  $('mHrSub').textContent = `bpm${hz ? ` · Z${hz}` : ''}`;
-  $('mHr').parentElement.title = live.hrSource === 'console' ? t('run.hrFromConsole') : live.hrSource === 'strap' ? t('run.hrFromStrap') : live.hrSource === 'trainer' ? t('run.hrFromTrainer') : t('run.heartRate');
-  renderAlpha();
+  const planned = own && ['running', 'paused'].includes(session.state) ? currentStep()?.incline : null;
+  $('mInclineSub').textContent = planned != null ? t('run.target', { value: `${planned} %` }) : ' ';
+  renderCommon(bar(), 'run');
   renderConsole();
 }
 
-/** α1 in the bar, to the right of HR. */
-function renderAlpha() {
-  const box = $('mAlphaBox');
-  box.classList.toggle('hidden', !rrActive());
-  if (!rrActive()) return;
-  const a = rrState.alpha;
-  const state = alphaState(a?.alpha1);
-  box.dataset.state = state || 'none';
-  $('mAlpha').textContent = a?.alpha1 != null ? a.alpha1.toFixed(2) : '--';
-  $('mAlphaSub').textContent = a?.alpha1 != null ? `α1 · ${t(`alpha.${state}`)}`
-    : rrState.contact === false ? `α1 · ${t('alpha.noContact')}`
-      : a?.reason === 'noisy signal' ? `α1 · ${t('alpha.noisy', { pct: Math.round(a.artifactPct) })}`
-        : `α1 · ${t('alpha.computing')}`;
-  box.title = t('alpha.help') +
-    (a ? ` · ${t('alpha.beats', { n: a.beats, pct: a.artifactPct.toFixed(1) })}` : '');
-}
-
 // ---------------------------------------------------------------------------
-// Export and upload
+// Upload
 // ---------------------------------------------------------------------------
-function activityName() {
-  return session.event ? `${session.event.name} (treadmill)` : 'Treadmill run';
+function uploadMeta() {
+  const dev = app.state.devices.treadmill;
+  return {
+    name: session.event ? `${session.event.name} (treadmill)` : 'Treadmill run',
+    description: `${dev?.info?.name || dev?.descriptor?.name || 'Treadmill'} controlled by Brickwise. Base incline ${$('wIncline').value}%. Pace ${$('wPosition').selectedOptions[0].text.toLowerCase()} within the zone.`,
+    device_name: dev?.descriptor?.name ?? 'Treadmill',
+  };
 }
 
 // ---------------------------------------------------------------------------
@@ -175,12 +107,13 @@ export function initRun() {
   });
   sessionEvents.on('tick', (now) => {
     render();
-    if (session.state === 'running' && now - lastChart >= 1000) {
+    if (session.state === 'running' && ownSession('run') && now - lastChart >= 1000) {
       lastChart = now;
       updateChart();
     }
   });
   sessionEvents.on('note', ({ text, append }) => {
+    if (session.policy?.sport !== 'run') return;
     if (append) $('sessionNote').textContent += text;
     else $('sessionNote').textContent = text;
   });
@@ -204,7 +137,7 @@ export function initRun() {
   $('tab-run').querySelectorAll('[data-speed]').forEach((btn) => {
     btn.onclick = () => {
       const delta = parseFloat(btn.dataset.speed);
-      if (currentStep()?.hasTarget && session.state === 'running') {
+      if (ownSession('run') && currentStep()?.hasTarget && session.state === 'running') {
         session.adjust = Math.round((session.adjust + delta) * 10) / 10;
         pushTarget();
       } else {
@@ -223,62 +156,5 @@ export function initRun() {
     btn.onclick = () => app.state.devices.treadmill?.setTarget({ incline: live.incline + parseFloat(btn.dataset.incline) });
   });
 
-  $('btnStart').onclick = start;
-  $('btnSkip').onclick = () => {
-    if (session.state === 'running' || session.state === 'paused') applyStep(session.stepIdx + 1);
-  };
-  $('btnFinish').onclick = () => {
-    if (session.state === 'armed') { cancel(); return; }
-    endSession(t('run.note.ended')); // the belt slows down to a walk, then pauses
-  };
-
-  $('btnCsv').onclick = () => {
-    $('menuExport').hidePopover();
-    if (!session.samples.length) return;
-    download(`brickwise-${new Date(session.startedAt).toISOString().slice(0, 16).replace(':', '')}.csv`, samplesToCsv(session.samples), 'text/csv');
-  };
-  const fromExport = (fn) => () => { $('menuExport').hidePopover(); fn(); };
-  $('menuExport').addEventListener('toggle', (e) => {
-    if (e.newState !== 'open') return;
-    const r = $('btnExport').getBoundingClientRect();
-    const m = $('menuExport');
-    m.style.top = `${r.bottom + 6}px`;
-    m.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - m.offsetWidth - 8))}px`;
-  });
-
-  $('btnTcx').onclick = fromExport(() => {
-    const tcx = buildTcx(session.samples, { name: activityName() });
-    download(`brickwise-${new Date(session.startedAt).toISOString().slice(0, 16).replace(':', '')}.tcx`, tcx, 'application/vnd.garmin.tcx+xml');
-  });
-
-  $('btnUpload').onclick = async () => {
-    const btn = $('btnUpload');
-    const note = $('sessionNote');
-    btn.disabled = true;
-    note.textContent = t('run.uploading');
-    try {
-      const tcx = buildTcx(session.samples, { name: activityName() });
-      const meta = {
-        name: activityName(),
-        description: `NordicTrack EXP 5i controlled by Brickwise. Base incline ${$('wIncline').value}%. Pace ${$('wPosition').selectedOptions[0].text.toLowerCase()} within the zone.`,
-        external_id: `brickwise-${session.startedAt}`,
-        paired_event_id: session.event?.id,
-      };
-      const data = await intervals.uploadTcx(tcx, meta);
-      const id = data.id || data.activities?.[0]?.id;
-      session.uploaded = true;
-      note.textContent = `${t('run.uploaded')} `;
-      if (id) {
-        const a = Object.assign(document.createElement('a'), {
-          href: `https://intervals.icu/activities/${encodeURIComponent(id)}`, target: '_blank', rel: 'noopener', textContent: t('run.viewOnIntervals'),
-        });
-        note.appendChild(a);
-      }
-      log('info', `Activity uploaded to Intervals.icu ${id || ''}`);
-    } catch (err) {
-      note.textContent = t('run.uploadFailed', { error: err.message });
-      log('error', `Upload: ${err.message}`);
-      btn.disabled = false;
-    }
-  };
+  wireSessionButtons(bar(), { sport: 'run', endNote: 'run.note.ended', upload: uploadMeta, note: $('sessionNote') });
 }

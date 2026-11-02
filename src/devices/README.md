@@ -7,12 +7,14 @@ src/devices/
   types.js                 the contract (JSDoc typedefs)
   registry.js              every driver, by kind
   ble/                     shared Web Bluetooth helpers
+  ftms/                    what every FTMS machine shares: common.js (features, Control Point, Machine Status), connection.js (openFtms)
   treadmill/
     nordictrack-exp5i/     driver.js, protocol.js, messages.js, index.js
     ftms/                  driver.js, protocol.js, index.js (generic: any FTMS treadmill)
     simulated/             driver.js, index.js (debug only)
   trainer/
     trainer.js             Trainer base class (modes, ERG ramp, clamping)
+    ftms/                  driver.js, protocol.js, index.js (generic: any FTMS smart trainer)
     simulated/             driver.js, index.js (debug only)
   sensors/
     hr-strap/              driver.js, index.js
@@ -65,4 +67,8 @@ Trainer drivers extend `Trainer` (`trainer/trainer.js`). The app calls `setMode(
 
 Readings are published as `TrainerState` (`types.js`): `power`, `cadence`, `speed`, `distance`, `elapsed`, `mode`, `controlled`, `hr`, `updatedAt`.
 
-The simulated trainer (`trainer/simulated/`, debug only) is the reference implementation; `simulate({ pedaling })` starts or stops the simulated rider. The FTMS trainer (#7) goes in `trainer/ftms/` (`protocol.js` with unit tests + `driver.js`), Tacx FE-C (#9) in `trainer/tacx-fec/`.
+The simulated trainer (`trainer/simulated/`, debug only) is the reference implementation; `simulate({ pedaling })` starts or stops the simulated rider.
+
+The **FTMS trainer** (`trainer/ftms/`, generic) parses Indoor Bike Data (0x2AD2) and the Supported Power and Resistance ranges (0x2AD8, 0x2AD6), and sends Set Target Power (ERG), Set Target Resistance and Set Indoor Bike Simulation Parameters. Its `capabilities` (ERG, resistance, simulation) follow the machine's Feature bits.
+
+FTMS treadmills and trainers share `ftms/common.js` and `ftms/connection.js`. `openFtms()` connects, subscribes to the machine's data, the Machine Status and the Control Point (with a write queue), and requests control. A device without the expected data characteristic is refused ("… is not a treadmill / smart trainer"), since both kinds match the same Fitness Machine service. Tacx FE-C (#9) would go in `trainer/tacx-fec/`.

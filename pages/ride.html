@@ -1,37 +1,30 @@
-<!-- Ride: the selected bike workout, to look at only (riding on a bike trainer comes later) -->
+<!-- Ride: the smart trainer session, with the Run page's shape: chart, the shared session bar, power and cadence -->
 <div id="tab-ride" class="tab hidden">
   <section class="card">
     <bw-chart id="rideChart" compact help="ride" heading="Ride"></bw-chart>
-    <p class="note mt-8" id="rideNote"></p>
   </section>
 
-  <!-- The connected smart trainer: live numbers and manual targets (no session yet) -->
-  <section class="dash card hidden" id="rideTrainer" aria-label="Smart trainer" data-i18n-aria="ride.smartTrainer">
-    <div class="dash-half">
-      <div class="dash-vals num">
-        <span class="dv" title="Power" data-i18n-title="ride.power"><b id="rtPower">--</b><small>W</small></span>
-        <span class="dv" title="Cadence" data-i18n-title="ride.cadence"><b id="rtCadence">--</b><small>rpm</small></span>
-        <span class="dv" title="Speed" data-i18n-title="ride.speed"><b id="rtSpeed">--</b><small>km/h</small></span>
-      </div>
-    </div>
+  <section class="dash card" aria-label="Session controls" data-i18n-aria="run.sessionControls">
+    <bw-session-bar id="rideBar" class="dash-half"></bw-session-bar>
     <div class="dash-half dash-split">
       <div class="dash-ctl" id="rtErg">
-        <span class="dv" title="ERG target" data-i18n-title="ride.ergTarget"><b id="rtTarget">--</b><small data-i18n="ride.wTarget">W target</small></span>
-        <span class="dash-sub num" data-i18n="ride.erg">ERG</span>
+        <span class="dv" title="Power" data-i18n-title="ride.power"><bw-icon name="power"></bw-icon><b id="rtPower">--</b><small>W</small></span>
+        <span class="dash-sub num" id="rtPowerSub">&nbsp;</span>
         <div class="pm">
           <button data-power="5" aria-label="Raise the target 5 W" title="+5 W" data-i18n-title="ride.plus5w" data-i18n-aria="ride.powerUp">+</button>
           <button data-power="-5" aria-label="Lower the target 5 W" title="−5 W" data-i18n-title="ride.minus5w" data-i18n-aria="ride.powerDown">−</button>
         </div>
       </div>
-      <div class="dash-ctl" id="rtResistance">
-        <span class="dv" title="Resistance" data-i18n-title="ride.resistance"><b id="rtLevel">--</b><small>%</small></span>
-        <span class="dash-sub num" data-i18n="ride.resistance">Resistance</span>
-        <div class="pm">
+      <div class="dash-ctl">
+        <span class="dv" title="Cadence" data-i18n-title="ride.cadence"><bw-icon name="cadence"></bw-icon><b id="rtCadence">--</b><small>rpm</small></span>
+        <span class="dash-sub num" id="rtSpeedSub">&nbsp;</span>
+        <!-- Resistance by hand: free rides only, on trainers that have it -->
+        <div class="pm" id="rtResistance">
           <button data-resistance="5" aria-label="Raise resistance 5 %" title="+5 %" data-i18n-aria="ride.resistanceUp">+</button>
           <button data-resistance="-5" aria-label="Lower resistance 5 %" title="−5 %" data-i18n-aria="ride.resistanceDown">−</button>
         </div>
       </div>
     </div>
-    <div class="dash-note note" id="rideTrainerNote" data-i18n="ride.manualNote">Manual control: workouts on the trainer come later.</div>
+    <div class="dash-note note" id="rideNote">Connect a smart trainer to begin.</div>
   </section>
 </div>

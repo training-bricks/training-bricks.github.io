@@ -5,7 +5,12 @@
   "defaults": {
     "warmup": { "dur": "10m", "pace": [70, 80], "ramp": true },
     "warmup30": { "dur": "8m", "pace": [70, 80], "ramp": true },
-    "cooldown": { "dur": "5m", "pace": [78, 68], "ramp": true }
+    "cooldown": { "dur": "5m", "pace": [78, 68], "ramp": true },
+    "ride": {
+      "warmup": { "dur": "10m", "power": [45, 65], "ramp": true },
+      "warmup30": { "dur": "8m", "power": [45, 65], "ramp": true },
+      "cooldown": { "dur": "5m", "power": [60, 45], "ramp": true }
+    }
   },
   "types": [
     {
@@ -284,6 +289,72 @@
           "maxReps": 7
         }
       }
+    },
+    {
+      "id": "ride-endurance",
+      "sport": "ride",
+      "name": "Endurance ride (Z2)",
+      "description": "Steady ride in power zone 2: the aerobic base for long events. With \"Adjust by HR\" the watts keep HR in Z2.",
+      "hrControl": true,
+      "levels": {
+        "1": { "kind": "continuous", "main": {"power": [56, 62]}, "summary": "low Z2" },
+        "2": { "kind": "continuous", "main": {"power": [60, 66]}, "summary": "low-mid Z2" },
+        "3": { "kind": "continuous", "main": {"power": [63, 70]}, "summary": "mid Z2" },
+        "4": { "kind": "continuous", "main": {"power": [66, 72]}, "summary": "mid-high Z2" },
+        "5": { "kind": "continuous", "main": {"power": [68, 75]}, "summary": "high Z2" }
+      }
+    },
+    {
+      "id": "ride-tempo",
+      "sport": "ride",
+      "name": "Tempo ride",
+      "description": "Long blocks in power zone 3, comfortably hard: muscular endurance for sustained efforts.",
+      "levels": {
+        "1": { "kind": "intervals", "maxReps": 3, "work": {"dur": "8m", "power": [76, 82]}, "recovery": {"dur": "4m", "power": 55} },
+        "2": { "kind": "intervals", "maxReps": 3, "work": {"dur": "10m", "power": [78, 84]}, "recovery": {"dur": "4m", "power": 55} },
+        "3": { "kind": "intervals", "maxReps": 3, "work": {"dur": "12m", "power": [80, 86]}, "recovery": {"dur": "4m", "power": 55} },
+        "4": { "kind": "intervals", "maxReps": 3, "work": {"dur": "15m", "power": [82, 88]}, "recovery": {"dur": "5m", "power": 55} },
+        "5": { "kind": "intervals", "maxReps": 2, "work": {"dur": "20m", "power": [84, 90]}, "recovery": {"dur": "5m", "power": 55} }
+      }
+    },
+    {
+      "id": "ride-sweetspot",
+      "sport": "ride",
+      "name": "Sweet spot",
+      "description": "Blocks at 88–94 % of FTP: a lot of threshold work for little fatigue.",
+      "levels": {
+        "1": { "kind": "intervals", "maxReps": 3, "work": {"dur": "6m", "power": [88, 92]}, "recovery": {"dur": "3m", "power": 55} },
+        "2": { "kind": "intervals", "maxReps": 3, "work": {"dur": "8m", "power": [88, 92]}, "recovery": {"dur": "4m", "power": 55} },
+        "3": { "kind": "intervals", "maxReps": 3, "work": {"dur": "10m", "power": [88, 93]}, "recovery": {"dur": "4m", "power": 55} },
+        "4": { "kind": "intervals", "maxReps": 3, "work": {"dur": "12m", "power": [90, 94]}, "recovery": {"dur": "4m", "power": 55} },
+        "5": { "kind": "intervals", "maxReps": 2, "work": {"dur": "15m", "power": [90, 95]}, "recovery": {"dur": "5m", "power": 55} }
+      }
+    },
+    {
+      "id": "ride-threshold",
+      "sport": "ride",
+      "name": "Threshold ride",
+      "description": "Intervals at FTP (power zone 4) to raise it.",
+      "levels": {
+        "1": { "kind": "intervals", "maxReps": 4, "work": {"dur": "4m", "power": [95, 100]}, "recovery": {"dur": "3m", "power": 55} },
+        "2": { "kind": "intervals", "maxReps": 4, "work": {"dur": "5m", "power": [95, 100]}, "recovery": {"dur": "3m", "power": 55} },
+        "3": { "kind": "intervals", "maxReps": 3, "work": {"dur": "6m", "power": [96, 101]}, "recovery": {"dur": "3m", "power": 55} },
+        "4": { "kind": "intervals", "maxReps": 3, "work": {"dur": "8m", "power": [97, 102]}, "recovery": {"dur": "4m", "power": 55} },
+        "5": { "kind": "intervals", "maxReps": 3, "work": {"dur": "10m", "power": [98, 103]}, "recovery": {"dur": "4m", "power": 55} }
+      }
+    },
+    {
+      "id": "ride-vo2",
+      "sport": "ride",
+      "name": "VO2max ride",
+      "description": "Short hard intervals in power zone 5, with equal recovery.",
+      "levels": {
+        "1": { "kind": "intervals", "maxReps": 5, "work": {"dur": "2m", "power": [106, 112]}, "recovery": {"dur": "2m", "power": 50} },
+        "2": { "kind": "intervals", "maxReps": 6, "work": {"dur": "2m", "power": [108, 115]}, "recovery": {"dur": "2m", "power": 50} },
+        "3": { "kind": "intervals", "maxReps": 5, "work": {"dur": "3m", "power": [108, 115]}, "recovery": {"dur": "3m", "power": 50} },
+        "4": { "kind": "intervals", "maxReps": 5, "work": {"dur": "3m", "power": [110, 118]}, "recovery": {"dur": "3m", "power": 50} },
+        "5": { "kind": "intervals", "maxReps": 5, "work": {"dur": "4m", "power": [110, 118]}, "recovery": {"dur": "3m", "power": 50} }
+      }
     }
   ],
   "featured": [
@@ -344,6 +415,21 @@
         { "dur": "6m", "pace": 93 },
         { "dur": "6m", "pace": 99 },
         { "dur": "4m", "pace": [78, 68], "ramp": true, "cooldown": true }
+      ]
+    },
+    {
+      "id": "ride-z2-hr",
+      "sport": "ride",
+      "name": "Z2 ride by heart rate",
+      "description": "The watts adjust themselves to keep HR in zone 2 (turn on \"Adjust by HR\"). Starts from power zone 2.",
+      "type": "ride-endurance",
+      "hrControl": true,
+      "minutes": 60,
+      "level": 3,
+      "steps": [
+        { "dur": "10m", "power": [45, 65], "ramp": true, "warmup": true },
+        { "dur": "45m", "power": "Z2", "hr": "Z2" },
+        { "dur": "5m", "power": [60, 45], "ramp": true, "cooldown": true }
       ]
     }
   ]

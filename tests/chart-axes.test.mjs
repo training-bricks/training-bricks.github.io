@@ -7,6 +7,10 @@ test('chart axes: power for bike workouts with cycling zones, pace otherwise', (
   assert.equal(leftAxisFor({ power: [{ hi: 100 }] }, ride), powerAxis);
   assert.equal(leftAxisFor(null, ride), paceAxis);
   assert.equal(leftAxisFor({ power: [{ hi: 100 }] }, [{ speedStart: 9 }]), paceAxis);
+  // A free ride (cycling zones, no plan) is drawn in watts; a free run keeps the pace
+  assert.equal(leftAxisFor({ power: [{ hi: 100 }], pace: [] }, []), powerAxis);
+  assert.equal(leftAxisFor({ power: [{ hi: 100 }], pace: [{ hi: 9 }] }, []), paceAxis);
+  assert.deepEqual(powerAxis.domain({ plan: [], samples: [], floor: 0.7 }), { lo: 0, hi: 250 });
 });
 
 test('chart axes: domains', () => {
@@ -16,6 +20,10 @@ test('chart axes: domains', () => {
   const w = powerAxis.domain({ plan: [{ power: { lo: 100, hi: 150 } }, { power: { lo: 200, hi: 200 } }], hrLeft: [250], floor: 0.5 });
   assert.equal(w.lo, 50);
   assert.equal(w.hi, 250 * 1.08);
+  // A low HR aligned on the watts axis may reach below 0 W, but the ticks start at 0 (2026-11-01 ride)
+  const low = powerAxis.domain({ plan: [{ power: { lo: 86, hi: 175 } }], hrLeft: [-40, 180], floor: 1 });
+  assert.equal(low.lo, -40);
+  assert.deepEqual(powerAxis.ticks(low, (v) => 300 - v, { top: 0, bottom: 400 }).map((t) => t.label), ['0', '50', '100', '150']);
 });
 
 test('chart axes: block heights, ticks and tooltip rows', () => {
@@ -33,5 +41,9 @@ test('chart axes: block heights, ticks and tooltip rows', () => {
   assert.deepEqual(paceAxis.planRows({ speedStart: 9, speedEnd: 9, zone: 3, incline: 1, hr: { lo: 0, hi: 150, mode: 'cap' } }), [[null, '6:40/km', 'target Z3 · 1 %'], [null, '≤ 150 bpm', 'HR cap']]);
   assert.equal(powerAxis.unit(), 'W');
   assert.equal(paceAxis.unit({}), 'min/km');
+  const ride = { power: [{ z: 1, lo: 0, hi: 104 }, { z: 2, lo: 105, hi: 142 }, { z: 3, lo: 143, hi: Infinity }] };
+  assert.equal(powerAxis.chip({ power: 150 }, ride), 3);
+  assert.equal(powerAxis.chip({ power: 120 }, ride), 2);
+  assert.equal(powerAxis.chip({ power: 0 }, ride), null); // not pedaling
   assert.equal(paceAxis.chip({ speed: 9 }, { pace: [{ z: 1, lo: 0, hi: 8 }, { z: 2, lo: 8, hi: 12 }] }), 2);
 });

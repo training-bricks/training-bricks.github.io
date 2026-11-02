@@ -24,7 +24,7 @@
 
 import { formatDuration, formatPace } from '../workouts/steps.js';
 import { DEFAULT_PACE_PCT, hrZoneOf } from '../physiology/zones.js';
-import { niceTicks, paceAxis, leftAxisFor } from './chart-axes.js';
+import { niceTicks, paceAxis, powerAxis, leftAxisFor } from './chart-axes.js';
 import { alphaState } from '../physiology/hrv.js';
 import { t } from '../i18n/index.js';
 
@@ -36,6 +36,7 @@ const RIBBON_H = 12;    // α1 ribbon, under the time axis (only with RR interva
 const RIBBON_GAP = 6;
 const SERIES = [
   { key: 'speed', color: 'var(--series-speed)' },
+  { key: 'power', color: 'var(--series-power)' },   // rides: the actual watts (no speed line there)
   { key: 'hr', color: 'var(--series-hr)' },
   { key: 'incline', color: 'var(--series-incline)' },
 ];
@@ -146,7 +147,8 @@ export class SessionChart {
   /** Vertical scale of each series; the left one comes from the axis (chart-axes.js). */
   _domains() {
     const hrs = this.samples.map((s) => s.hr).filter((v) => v > 0);
-    for (const p of this.plan) if (p.hr) hrs.push(p.hr.lo, p.hr.hi);
+    // A Z1 cap starts at 0 bpm: only real heart rates set the scale
+    for (const p of this.plan) if (p.hr) hrs.push(...[p.hr.lo, p.hr.hi].filter((v) => v > 0));
     const axis = leftAxisFor(this.zones, this.plan);
     const map = this._hrMap(axis.zonesOf(this.zones));
     // With aligned zones, HR shares the left scale
@@ -164,12 +166,17 @@ export class SessionChart {
       hr = hrs.length ? niceTicks(Math.max(40, Math.min(...hrs) - 25), Math.max(...hrs) + 5, 4) : niceTicks(80, 190, 4);
     }
 
+    // Watts share the left scale on a bike workout; a free ride gives them their own
+    const watts = this.samples.map((s) => s.power).filter((v) => v > 0);
+    const power = axis === powerAxis ? left : { lo: 0, hi: Math.max(100, ...watts) * 1.15 };
+
     const inc = this.samples.map((s) => s.incline);
     for (const p of this.plan) inc.push(p.incline);
     return {
       axis,
       left,
       speed,
+      power,
       hr,
       incline: { lo: 0, hi: Math.max(4, ...inc) * 3 }, // stays in the bottom third
     };
@@ -284,7 +291,9 @@ export class SessionChart {
 
     // Actual data, on top
     const pts = thin(this.samples, Math.max(50, Math.floor(plotW)));
+    const ride = this.samples.some((p) => p.power != null);
     for (const s of [...SERIES].reverse()) {
+      if (ride && s.key === 'speed') continue; // a trainer's speed is virtual: power tells the effort
       const series = pts.filter((p) => p[s.key] != null && (s.key === 'incline' || p[s.key] > 0));
       if (series.length < 2) continue;
       const y = this.yOf[s.key];
@@ -297,7 +306,7 @@ export class SessionChart {
       // Wrapped by words to the plot's width (≈ 7 px per character at 13 px)
       const width = Math.max(10, Math.floor((plotW - 16) / 7));
       const lines = [];
-      for (const word of t('chart.noWorkout').split(' ')) {
+      for (const word of t(dom.axis === powerAxis ? 'chart.noWorkoutRide' : 'chart.noWorkout').split(' ')) {
         const last = lines.length - 1;
         if (last >= 0 && `${lines[last]} ${word}`.length <= width) lines[last] += ` ${word}`;
         else lines.push(word);

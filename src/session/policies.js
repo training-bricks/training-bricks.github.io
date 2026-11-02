@@ -27,12 +27,13 @@ export const POLICIES = {
     speed: () => live.trainer?.speed ?? 0,
     sample: () => ({ speed: live.trainer?.speed ?? 0, power: live.trainer?.power ?? null, cadence: live.trainer?.cadence ?? null }),
     resetStale: () => { if (live.trainer) live.trainer = { ...live.trainer, cadence: 0, speed: 0, power: 0 }; },
-    hrSteerable: false, // HR on watts: #8
+    hrSteerable: true, // HR on watts in ERG (#8)
     words: { started: 'Pedaling: session started', stopped: 'Pedaling stopped: session paused', resumed: 'Pedaling: session resumed', done: 'ride.note.complete' },
   },
 };
 
-export const policyFor = (event) => (event?.sport === 'ride' ? POLICIES.ride : POLICIES.run);
+/** The policy of a workout's sport, or of the page that starts a free session. */
+export const policyFor = (event, sport = 'run') => ((event?.sport ?? sport) === 'ride' ? POLICIES.ride : POLICIES.run);
 
 /** No reading from the device for a while: treat it as stopped. */
 export const isStale = (device, now) => !device || now - (device.state?.updatedAt ?? 0) > STALE_MS;

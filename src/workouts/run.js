@@ -11,7 +11,7 @@ const MS_TO_KMH = 3.6;
 /** With HR targets, only steps this long follow an HR zone: HR needs 1–2 min to respond. */
 export const HR_STEP_MIN_S = 300;
 /** Seconds an HR-zone step leaves speed alone while HR climbs (Z3 and above). */
-const HR_SETTLE_S = 150;
+export const HR_SETTLE_S = 150;
 
 /** Picks the target speed within the range: 'low' | 'mid' | 'high'. */
 function pickSpeed(pace, position) {

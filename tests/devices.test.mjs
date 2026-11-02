@@ -26,8 +26,8 @@ for (const d of DRIVERS.filter((x) => x.debugOnly)) {
 test('registry: simulators only with debug; lookups', () => {
   assert.deepEqual(driversFor('treadmill').map((d) => d.id), ['nordictrack-exp5i', 'ftms-treadmill']);
   assert.deepEqual(driversFor('treadmill', { debug: true }).map((d) => d.id), ['nordictrack-exp5i', 'ftms-treadmill', 'simulated-treadmill']);
-  assert.deepEqual(driversFor('trainer'), []);
-  assert.deepEqual(driversFor('trainer', { debug: true }).map((d) => d.id), ['simulated-trainer']);
+  assert.deepEqual(driversFor('trainer').map((d) => d.id), ['ftms-trainer']);
+  assert.deepEqual(driversFor('trainer', { debug: true }).map((d) => d.id), ['ftms-trainer', 'simulated-trainer']);
   assert.equal(getDriver('hr-strap').kind, 'hr');
   assert.equal(getDriver('nope'), null);
 });
@@ -40,7 +40,8 @@ test('registry: requestDevice options and detection', () => {
   assert.equal(detect('treadmill', { name: 'I_TL123' }).id, 'nordictrack-exp5i');
   assert.equal(detect('treadmill', { name: 'Horizon T202' }).id, 'ftms-treadmill'); // the generic (FTMS) driver
   assert.ok(t.filters.some((f) => f.services?.includes('fitness_machine')));
-  assert.equal(detect('trainer', { name: 'KICKR' }), null);
+  assert.equal(detect('trainer', { name: 'KICKR' }).id, 'ftms-trainer'); // the generic (FTMS) driver
+  assert.ok(requestOptions('trainer').filters.some((f) => f.services?.includes('fitness_machine')));
 });
 
 test('ble: write queue keeps order, retries, and a failure does not block the next write', async () => {
@@ -127,4 +128,15 @@ test('trainer: the simulator holds an ERG target while pedaling', async () => {
   assert.ok(dev.state.speed > 20);
   assert.equal(dev.state.controlled, true);
   dev.disconnect();
+});
+
+test('timer: every() makes no last call once stopped while it waits', async () => {
+  const { every } = await import('../src/lib/timer.js');
+  let calls = 0;
+  const stop = every(20, () => calls++);
+  await new Promise((r) => setTimeout(r, 30));
+  const before = calls;
+  stop();
+  await new Promise((r) => setTimeout(r, 60));
+  assert.equal(calls, before);
 });

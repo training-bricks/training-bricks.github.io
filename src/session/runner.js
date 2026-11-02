@@ -12,7 +12,7 @@ import { createEmitter } from '../lib/events.js';
 import { targetSpeedAt } from '../workouts/steps.js';
 import { VT1, VT2 } from '../physiology/hrv.js';
 import { analyzeRamp } from '../physiology/thresholds.js';
-import { hrDecision, hrSlope, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM } from './hr-control.js';
+import { hrDecision, hrSlope, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM, SPEED, POWER, roundTo } from './hr-control.js';
 import { live, rrState, rrActive, updateAlpha } from './live.js';
 import { addTest, testText } from './test-history.js';
 import { policyFor, isStale, powerAt, POLICIES } from './policies.js';
@@ -37,6 +37,10 @@ const changed = () => events.emit('change');
 const ACTIVE = ['armed', 'running', 'paused'];
 // The session's sport decides the device it drives (session/policies.js)
 const policy = () => session.policy ?? POLICIES.run;
+/** What HR moves on this session's device: speed on a treadmill, watts on a trainer. */
+const actuator = () => (policy().kind === 'trainer' ? POWER : SPEED);
+/** The zones the session is planned against (the cycling ones on a bike). */
+const zones = () => app.zonesFor(session.event ?? { sport: policy().sport });
 const device = () => app.state.devices[policy().kind];
 const limits = () => device()?.limits ?? {};
 export const isActive = () => ACTIVE.includes(session.state);
@@ -56,8 +60,6 @@ const HR_GRACE_S = 45;       // at the start of a step HR takes a while to respo
 const HR_HOLD_S = 10;        // the same correction must be asked for this long in a row
 const HR_SPACING_S = 25;     // between one adjustment and the next
 const HR_RISE_SPACING_S = 60; // between two rises: HR answers a rise 1–2 min later (#10)
-const HR_MAX_DOWN = 2.0;     // at most this much below the target
-const HR_MAX_UP = 1.5;       // only on steps with an HR target
 const ALPHA_HOLD_S = 60;     // median α1 of this many seconds below VT1 → the α1 guard is on
 const ALPHA_RELEASE = 0.8;   // the guard turns off once the median α1 is above this…
 const ALPHA_RELEASE_S = 60;  // …over this many seconds (hysteresis: VT1 alone flipped it back and forth, #10)
@@ -77,8 +79,8 @@ export const session = {
   stepDist: 0,
   totalElapsed: 0,
   totalDist: 0,
-  adjust: 0,
-  hrAdjust: 0,        // km/h the HR adjustment removed (or added) in this step
+  adjust: 0,          // manual + / − in this step (km/h, or W on a trainer)
+  hrAdjust: 0,        // what the HR adjustment removed (or added) in this step (km/h, or W)
   hrOutSince: null,   // since when (step s) the same correction has been asked for
   hrWantDir: 0,       // direction of that correction: -1, 0 or 1
   hrLastAdjust: null, // step s of the last HR adjustment
@@ -117,7 +119,7 @@ function stepProgress(step) {
 }
 
 export function applyStep(i) {
-  const before = session.target; // the speed the previous step ended at
+  const before = policy().kind === 'trainer' ? session.targetPower : session.target; // where the previous step ended
   session.stepIdx = i;
   session.stepStarts[i] = session.totalElapsed;
   session.stepElapsed = 0;
@@ -151,12 +153,13 @@ export function applyStep(i) {
  * up (2026-10-30, #10). The ramp keeps its shape from there.
  */
 function coolDownFrom(step, before) {
-  if (!step.cooldown || !step.hasTarget || before == null || policy().kind !== 'treadmill') return;
-  const base = targetSpeedAt(step, 0);
-  if (before >= base) return;
-  session.hrAdjust = Math.max(-HR_MAX_DOWN, Math.round((before - base) * 10) / 10);
-  session.reason = `cool-down from ${before.toFixed(1)} km/h`;
-  log('info', `Cool-down starts at ${before.toFixed(1)} km/h, not ${base.toFixed(1)}: the previous step ended there`);
+  if (!step.cooldown || before == null) return;
+  const a = actuator();
+  const base = a === POWER ? powerAt(step, 0) : step.hasTarget ? targetSpeedAt(step, 0) : null;
+  if (base == null || before >= base) return;
+  session.hrAdjust = Math.max(-a.maxDown, roundTo(before - base, a.decimals));
+  session.reason = `cool-down from ${before} ${a.unit}`;
+  log('info', `Cool-down starts at ${before} ${a.unit}, not ${base}: the previous step ended there`);
 }
 
 /** Sends the current step's targets: speed and incline on a treadmill, power on a trainer. */
@@ -208,11 +211,13 @@ function slowDownStep(now) {
   log('info', 'Walking speed reached: belt paused');
 }
 
-/** Sends the ride step's watts (ramps follow the progress) when they change. */
-function pushPower(force = false) {
+/** Sends the ride step's watts (ramps follow the progress) plus the manual and HR adjustments, when they change. */
+export function pushPower(force = false) {
   const step = currentStep();
-  const w = powerAt(step, stepProgress(step));
-  if (w == null) return;
+  const base = powerAt(step, stepProgress(step));
+  if (base == null) return;
+  const l = limits();
+  const w = Math.round(Math.min(l.powerMax ?? Infinity, Math.max(l.powerMin ?? 0, base + session.adjust + session.hrAdjust)));
   if (force || w !== session.targetPower) {
     session.targetPower = w;
     device()?.setTarget({ power: w });
@@ -239,13 +244,18 @@ export function pushTarget(force = false) {
   }
 }
 
-export function start() {
+/**
+ * Arms a session with the selected workout, or a free one. sport: the page
+ * that starts it ('run' | 'ride'), which picks the device of a free session;
+ * a workout's own sport wins.
+ */
+export function start({ sport = 'run' } = {}) {
   slowdown = null;
   resetSession();
   session.steps = app.state.selection ? app.state.selection.steps : [];
   session.event = app.state.selection ? app.state.selection.event : null;
   session.hrOn = !!app.state.selection?.hrOn;
-  session.policy = policyFor(session.event);
+  session.policy = policyFor(session.event, sport);
   session.state = 'armed';
   events.emit('active', true);
   changed();
@@ -382,10 +392,11 @@ export function tick(now = Date.now()) {
  * Only before an aerobic step (Z1–Z2): harder sets keep the whole warm-up.
  */
 function warmupDone(step) {
-  if (!step.warmup || !step.ramp || !app.state.zones?.hr.length || !live.hr) return false;
+  const z = zones();
+  if (!step.warmup || !step.ramp || !z?.hr.length || !live.hr) return false;
   const next = session.steps[session.stepIdx + 1];
   if (!next || next.zone == null || next.zone > 2) return false;
-  if (live.hr < app.state.zones.hr[0].hi) { session.warmupHrSince = null; return false; }
+  if (live.hr < z.hr[0].hi) { session.warmupHrSince = null; return false; }
   session.warmupHrSince ??= session.stepElapsed;
   return session.stepElapsed - session.warmupHrSince >= WARMUP_HOLD_S;
 }
@@ -460,7 +471,7 @@ function alphaGuard() {
   const median = recent.sort((x, y) => x - y)[Math.floor(recent.length / 2)];
   if (!session.alphaGuard && median < VT1) {
     session.alphaGuard = true;
-    if (session.hrOn) log('info', `α1 ${median.toFixed(2)} (median of ${ALPHA_HOLD_S} s) below ${VT1}: no more speed on aerobic steps until it is above ${ALPHA_RELEASE}`);
+    if (session.hrOn) log('info', `α1 ${median.toFixed(2)} (median of ${ALPHA_HOLD_S} s) below ${VT1}: no rises on aerobic steps until it is above ${ALPHA_RELEASE}`);
   } else if (session.alphaGuard && median > ALPHA_RELEASE) {
     session.alphaGuard = false;
     if (session.hrOn) log('info', `α1 ${median.toFixed(2)} (median of ${ALPHA_RELEASE_S} s) above ${ALPHA_RELEASE}: α1 guard off`);
@@ -484,19 +495,20 @@ function alphaGuard() {
  */
 function adjustForHr(step) {
   const guard = alphaGuard();
-  if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !step.hasTarget || !live.hr) return;
+  if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !(step.hasTarget || step.power) || !live.hr) return;
   const t = session.stepElapsed;
   if (t < (step.hr.settle ?? HR_GRACE_S)) return;
   const { lo, hi, mode } = step.hr;
   const recent = session.samples.filter((s) => s.elapsed > session.totalElapsed - SLOPE_WINDOW_S);
-  const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr: live.hr, z1Top: app.state.zones?.hr[0]?.hi };
+  const a = actuator();
+  const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr: live.hr, z1Top: zones()?.hr[0]?.hi };
   const veto = guard && alphaVetoApplies(where);
   const spaced = session.alphaLastDrop == null || session.totalElapsed - session.alphaLastDrop >= ALPHA_DROP_SPACING_S;
   const { delta, reason, alpha } = hrDecision({
     mode, lo, hi, hr: live.hr, slope: hrSlope(recent), hrAdjust: session.hrAdjust,
     alphaVeto: veto, alphaDrop: veto && spaced && alphaDropApplies(where), giveBack: !step.cooldown,
     aim: mode === 'target' && step.zone != null && step.zone <= 2 ? AEROBIC_AIM : 0.5,
-  });
+  }, a);
   const dir = Math.sign(delta);
   if (!dir) { session.hrOutSince = null; session.hrWantDir = 0; return; }
   if (dir !== session.hrWantDir) { session.hrWantDir = dir; session.hrOutSince = t; }
@@ -514,13 +526,15 @@ function adjustForHr(step) {
     log('info', `${reason}: incline ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(1)} %, now ${(step.incline + next).toFixed(1)} %`);
     pushIncline();
   } else {
-    const maxUp = mode === 'target' ? HR_MAX_UP : 0;
-    const next = Math.round(Math.min(maxUp, Math.max(-HR_MAX_DOWN, session.hrAdjust + delta)) * 10) / 10;
+    // Speed on a treadmill, watts on a trainer, within the step's limits
+    const maxUp = mode === 'target' ? a.maxUp : 0;
+    const next = roundTo(Math.min(maxUp, Math.max(-a.maxDown, session.hrAdjust + delta)), a.decimals);
     if (next === session.hrAdjust) return;
-    const applied = Math.round((next - session.hrAdjust) * 10) / 10;
+    const applied = roundTo(next - session.hrAdjust, a.decimals);
     session.hrAdjust = next;
-    log('info', `${reason}: speed ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(1)} km/h, HR adjustment ${next > 0 ? '+' : ''}${next.toFixed(1)}`);
-    pushTarget();
+    const what = a === POWER ? 'power' : 'speed';
+    log('info', `${reason}: ${what} ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(a.decimals)} ${a.unit}, HR adjustment ${next > 0 ? '+' : ''}${next.toFixed(a.decimals)}`);
+    if (a === POWER) pushPower(); else pushTarget();
   }
   session.hrLastAdjust = t;
   if (dir > 0) session.hrLastRise = t;

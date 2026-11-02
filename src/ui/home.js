@@ -54,7 +54,7 @@ function plannedEntries(sport = 'all') {
   const shown = (planned || []).map((w, i) => [w, i]).filter(([w]) => sport === 'all' || w.sport === sport);
   const entries = shown.map(([w, i]) => {
     const sec = workoutSeconds(w.workout_doc);
-    return { key: `i:${i}`, title: w.name || t('common.workout'), sub: sec ? `~${formatDuration(sec)}` : '', hrControl: hrControllable(w, app.state.zones), sport: w.sport };
+    return { key: `i:${i}`, title: w.name || t('common.workout'), sub: sec ? `~${formatDuration(sec)}` : '', hrControl: hrControllable(w, app.zonesFor(w)), sport: w.sport };
   });
   if (!shown.length) {
     const none = { all: t('home.noneAll'), run: t('home.noneRun'), ride: t('home.noneRide') }[sport];

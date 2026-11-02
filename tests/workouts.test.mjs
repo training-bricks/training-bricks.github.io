@@ -85,7 +85,7 @@ test('resolveDoc: % of threshold with the profile and the full library', () => {
   const zones = zonesFromProfile({ ...profileFromIntervals(runSettings), thresholdKmh: 10 });
   const doc = resolveDoc({ steps: [{ duration: 60, pace: { units: '%pace', value: 90 } }] }, zones);
   assert.equal(Math.round(doc.steps[0]._pace.value * 3.6 * 10) / 10, 9);
-  for (const w of LIBRARY) {
+  for (const w of LIBRARY.filter((x) => x.sport === 'run')) {
     const steps = flattenWorkout(resolveDoc(w.workout_doc, zones), { zones });
     assert.ok(steps.length > 2, w.id);
     assert.ok(steps.every((s) => s.hasTarget && s.speedStart > 0 && s.speedStart < 20), w.id); // plan speeds, no device range
@@ -117,7 +117,8 @@ test('library: every combination lasts what it says and levels go up', () => {
   assert.throws(() => parseDur('2 min'));
   const secs = (steps) => steps.reduce((a, s) => a + (s.steps ? s.reps * secs(s.steps) : s.duration), 0);
   const generated = LIBRARY.filter((w) => !w.featured);
-  assert.equal(generated.length, 9 * 3 * 5);
+  assert.equal(generated.filter((w) => w.sport === 'run').length, 9 * 3 * 5);
+  assert.equal(generated.filter((w) => w.sport === 'ride').length, 5 * 3 * 5);
   for (const w of generated) assert.equal(secs(w.workout_doc.steps), w.minutes * 60, w.id);
   // Work time grows with level in interval sessions
   const zones = zonesFromProfile(profileFromIntervals(runSettings));
@@ -140,7 +141,7 @@ test('flattenWorkout marks warm-up steps (they end early at the top of Z1)', () 
 
 test('library: hrControl flag only on workouts HR can steer', () => {
   const flagged = new Set(LIBRARY.filter((w) => w.hrControl).map((w) => w.type));
-  assert.deepEqual([...flagged].sort(), ['aerobic', 'tempo', 'walk-hr']);
+  assert.deepEqual([...flagged].sort(), ['aerobic', 'ride-endurance', 'tempo', 'walk-hr']);
   assert.equal(LIBRARY.find((w) => w.id === 'hr-z2').hrControl, true);
   assert.equal(LIBRARY.find((w) => w.id === 'progressive').hrControl, false);
   assert.ok(LIBRARY.filter((w) => w.type === 'vo2' || w.type === 'hills').every((w) => !w.hrControl));
@@ -215,10 +216,50 @@ test('flattenWorkout: bike steps get watts and a power zone from the cycling zon
   assert.equal(steps[0].zone, 2);   // 115 W: Z2 is 111–150 W
   assert.deepEqual(steps[1].power, { lo: 181, hi: 210 });
   assert.equal(steps[1].zone, 4);
-  assert.deepEqual(steps[1].hr, { lo: 156, hi: 165, mode: 'info' });
+  // An HR target on a bike step is followed with the watts (it was information only before the trainer)
+  assert.deepEqual(steps[1].hr, { lo: 156, hi: 165, mode: 'target' });
+  assert.match(steps[1].label, /HR 156–165 \(Z4\)/);
   assert.equal(steps[2].zone, 2);
-  assert.match(steps[1].label, /Z4 power \(181–210 W\)/);
+  assert.match(steps[2].label, /· 120 W$/);
+  // A power step gets the HR zone in the same position as a cap; the warm-up too
+  assert.deepEqual(steps[2].hr, { lo: ride.hr[1].lo, hi: ride.hr[1].hi, mode: 'cap' });
+  assert.equal(steps[0].hr.mode, 'cap');
   assert.ok(steps.every((s) => !s.hasTarget && s.intensity));
   // Without cycling zones the zone still comes from the % FTP defaults
   assert.equal(flattenWorkout(doc)[0].zone, 2);
+});
+
+test('flattenWorkout keeps the warm-up and cool-down flags (the #10 cool-down rules need them)', () => {
+  const steps = flattenWorkout({ steps: [
+    { duration: 300, warmup: true, _pace: { value: 2 } },
+    { duration: 600, _pace: { value: 2.5 } },
+    { duration: 300, cooldown: true, _pace: { value: 2 } },
+  ] });
+  assert.deepEqual(steps.map((s) => [s.warmup, s.cooldown]), [[true, false], [false, false], [false, true]]);
+});
+
+test('library: bike workouts in % of FTP or power zones, with their own warm-up and cool-down', () => {
+  const ride = rideZones(rideFromIntervals({ ftp: 200, hr_zones: [130, 145, 155, 165, 175, 185] }));
+  const z = { hr: ride.hr, pace: [], power: ride.power, ftp: ride.ftp };
+  const rides = LIBRARY.filter((w) => w.sport === 'ride');
+  assert.ok(rides.length >= 75);
+  for (const w of rides) {
+    const steps = flattenWorkout(w.workout_doc, { zones: z });
+    assert.ok(steps.every((s) => s.power && s.power.lo > 0 && s.power.hi < 300 && !s.hasTarget), w.id);
+    assert.ok(steps[0].warmup && steps.at(-1).cooldown, w.id);
+  }
+  const z2 = flattenWorkout(LIBRARY.find((w) => w.id === 'ride-endurance-45-3').workout_doc, { zones: z });
+  assert.deepEqual(z2[1].power, { lo: 126, hi: 140 });   // 63–70 % of 200 W
+  assert.equal(z2[0].ramp, true);
+  // The featured Z2 ride by HR: HR target in Z2, starting from power zone 2
+  const byHr = flattenWorkout(LIBRARY.find((w) => w.id === 'ride-z2-hr').workout_doc, { zones: z, hrTargets: true });
+  assert.equal(byHr[1].hr.mode, 'target');
+  assert.deepEqual([byHr[1].hr.lo, byHr[1].hr.hi], [ride.hr[1].lo, ride.hr[1].hi]);
+  assert.deepEqual(byHr[1].power, { lo: ride.power[1].lo, hi: ride.power[1].hi });
+  // Long aerobic blocks follow HR with the adjustment on; short hard ones keep their watts
+  const tempo = flattenWorkout(LIBRARY.find((w) => w.id === 'ride-tempo-60-3').workout_doc, { zones: z, hrTargets: true });
+  assert.equal(tempo[1].hr.mode, 'target');
+  assert.equal(tempo[1].hr.settle, 150);
+  const vo2 = flattenWorkout(LIBRARY.find((w) => w.id === 'ride-vo2-45-3').workout_doc, { zones: z, hrTargets: true });
+  assert.ok(vo2.filter((s) => s.kind === 'Work').every((s) => s.hr?.mode !== 'target'));
 });

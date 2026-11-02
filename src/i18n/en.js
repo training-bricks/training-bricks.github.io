@@ -55,6 +55,7 @@ export default {
   'library.noMatch': 'No workouts match those filters.',
   'library.count': '{shown} of {total}',
   'library.hrTag': 'Speed can follow your heart rate',
+  'library.hrTagRide': 'The watts can follow your heart rate',
 
   // workout
   'workout.go': 'Go to the workout (Run or Ride)',
@@ -73,6 +74,9 @@ export default {
   'workout.noFtp': 'FTP is missing in Intervals.icu: without it, steps have no watts.',
   'workout.noThreshold': 'Threshold pace is missing in Profile: without it, steps have no speed.',
   'workout.hrOn': 'Long steps follow their HR zone (speed starts at the planned pace); short ones keep their pace.',
+  'workout.hrAdjustRide': 'Adjust watts by HR',
+  'workout.hrAdjustRideHelp': 'Long steps follow their HR zone instead of the watts',
+  'workout.hrOnRide': 'Long steps follow their HR zone (the watts start at the plan); short ones keep their watts.',
 
   // step
   'step.zonePace': 'Z{zone} pace',
@@ -123,7 +127,7 @@ export default {
   'run.note.runningFree': 'Free session in progress.',
   'run.note.paused': 'Paused: the belt is stopped. Press START on the console to continue.',
   'run.note.noThreshold': 'Threshold pace is missing in Profile: without it, this workout has no speeds.',
-  'run.note.bikeWorkout': 'This is a bike workout: it needs a bike trainer, which is not supported yet.',
+  'run.note.bikeWorkout': 'This is a bike workout: it runs on the Ride page, with a smart trainer.',
   'run.note.safetyKey': 'Safety key missing: attach it to the console.',
   'run.target': 'target {value}',
   'run.hrFromConsole': 'Heart rate (from the console)',
@@ -151,12 +155,8 @@ export default {
   'alpha.noValue': 'no value',
 
   // ride
-  'ride.smartTrainer': 'Smart trainer',
   'ride.power': 'Power',
   'ride.cadence': 'Cadence',
-  'ride.speed': 'Speed',
-  'ride.ergTarget': 'ERG target',
-  'ride.wTarget': 'W target',
   'ride.erg': 'ERG',
   'ride.plus5w': '+5 W',
   'ride.powerUp': 'Raise the target 5 W',
@@ -165,10 +165,17 @@ export default {
   'ride.resistance': 'Resistance',
   'ride.resistanceUp': 'Raise resistance 5 %',
   'ride.resistanceDown': 'Lower resistance 5 %',
-  'ride.manualNote': 'Manual control: workouts on the trainer come later.',
-  'ride.pick': 'Pick a bike workout in Home to see it here.',
   'ride.noFtp': 'FTP is missing in Intervals.icu: without it, the chart only shows the workout shape.',
-  'ride.later': 'Riding it on the trainer comes later: for now this page shows the workout, and a connected trainer can be controlled by hand.',
+  'ride.freeRide': 'Free ride',
+  'ride.finish': 'Finish (releases the trainer)',
+  'ride.note.pick': 'Pick a bike workout (or none) and press Start.',
+  'ride.note.connect': 'Connect a smart trainer to begin.',
+  'ride.note.armed': 'Start pedaling: the workout begins as soon as the cadence goes over 20 rpm.',
+  'ride.note.running': 'Workout in progress: the trainer holds each step\'s watts (ERG).',
+  'ride.note.runningFree': 'Free ride in progress: set the watts with + and −.',
+  'ride.note.paused': 'Paused: pedal to continue.',
+  'ride.note.ended': 'Session ended. Trainer released.',
+  'ride.note.runWorkout': 'This is a running workout: it runs on the Run page, with a treadmill.',
   'ride.note.complete': 'Workout complete. Trainer released.',
 
   // devices
@@ -198,6 +205,7 @@ export default {
   'chart.aria': 'Session speed, incline and HR over the planned workout',
   'chart.noThreshold': 'No threshold pace in Profile: the background only shows the workout shape',
   'chart.noWorkout': 'No workout: lines appear once the belt starts moving',
+  'chart.noWorkoutRide': 'No workout: lines appear once you start pedaling',
   'chart.pace': 'pace',
   'chart.incline': 'incline',
   'chart.hrCap': 'HR cap',

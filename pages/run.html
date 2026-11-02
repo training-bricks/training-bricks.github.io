@@ -14,25 +14,7 @@
   </section>
 
   <section class="dash card" aria-label="Session controls" data-i18n-aria="run.sessionControls">
-    <div class="dash-half">
-      <div class="dash-vals num">
-        <span class="dv" title="Distance" data-i18n-title="run.distance"><b id="mDist">0.00</b><small>km</small></span>
-        <span class="dv" title="Time" data-i18n-title="run.time"><bw-icon name="time"></bw-icon><b id="mTime">0:00</b></span>
-        <span class="dv" title="Heart rate" data-i18n-title="run.heartRate"><bw-icon name="heart"></bw-icon><b id="mHr">--</b><small id="mHrSub">bpm</small></span>
-        <span class="dv alpha hidden" id="mAlphaBox"><i class="alpha-dot" aria-hidden="true"></i><b id="mAlpha">--</b><small id="mAlphaSub">α1</small></span>
-      </div>
-      <div class="dash-btns">
-        <button class="icon primary" id="btnStart" aria-label="Start" title="Start" disabled><bw-icon name="play"></bw-icon></button>
-        <button class="icon" id="btnSkip" aria-label="Skip step" title="Skip step" disabled data-i18n-label="run.skipStep"><bw-icon name="skip"></bw-icon></button>
-        <button class="icon danger" id="btnFinish" aria-label="Finish (pauses the belt)" title="Finish (pauses the belt)" disabled data-i18n-label="run.finish"><bw-icon name="stop"></bw-icon></button>
-        <button class="icon" id="btnExport" popovertarget="menuExport" aria-label="Download the session" title="Download (when finished)" disabled data-i18n-title="run.downloadHelp" data-i18n-aria="run.download"><bw-icon name="download"></bw-icon></button>
-        <button class="icon" id="btnUpload" aria-label="Upload to Intervals.icu" title="Upload to Intervals.icu (when finished)" disabled><bw-icon name="upload"></bw-icon></button>
-        <div popover id="menuExport" class="menu">
-          <button id="btnCsv" data-i18n="run.csv">CSV (second by second)</button>
-          <button id="btnTcx" data-i18n="run.tcx">TCX (for Strava, Garmin…)</button>
-        </div>
-      </div>
-    </div>
+    <bw-session-bar id="runBar" class="dash-half"></bw-session-bar>
     <div class="dash-half dash-split">
       <div class="dash-ctl" id="mInclineCtl">
         <span class="dv" title="Incline" data-i18n-title="run.incline"><bw-icon name="incline"></bw-icon><b id="mIncline">0.0</b><small>%</small></span>

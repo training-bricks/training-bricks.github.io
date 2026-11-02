@@ -8,7 +8,7 @@ import { $, escapeHtml } from '../lib/dom.js';
 import * as app from '../state.js';
 import { formatPace, formatDuration } from '../workouts/steps.js';
 import { session } from '../session/runner.js';
-import { planTimeline } from './run.js';
+import { planTimeline } from './session-screen.js';
 import { t } from '../i18n/index.js';
 
 const STEP_HEADS = {
@@ -32,6 +32,12 @@ function renderWorkout() {
   const body = $('wSteps');
   const ride = sel?.event.sport === 'ride';
   $('wHrAdjustRow').hidden = !sel?.hrControl;
+  // On a bike HR moves the watts instead of the speed
+  const adjust = $('wHrAdjustRow').querySelector('[data-i18n]');
+  adjust.dataset.i18n = ride ? 'workout.hrAdjustRide' : 'workout.hrAdjust';
+  adjust.textContent = t(adjust.dataset.i18n);
+  $('wHrAdjustRow').dataset.i18nTitle = ride ? 'workout.hrAdjustRideHelp' : 'workout.hrAdjustHelp';
+  $('wHrAdjustRow').title = t($('wHrAdjustRow').dataset.i18nTitle);
   $('wPosition').closest('label').hidden = $('wIncline').closest('label').hidden = ride;
   renderStepHead(ride ? 'ride' : 'run');
   if (!sel) {
@@ -45,12 +51,12 @@ function renderWorkout() {
   const missing = `${ride ? t('workout.noFtp') : t('workout.noThreshold')}\n`;
   $('wDesc').textContent = (sel.needsProfile ? missing : '') +
     (sel.event.description || '') +
-    (sel.hrOn ? `\n♥ ${t('workout.hrOn')}` : '');
+    (sel.hrOn ? `\n♥ ${t(ride ? 'workout.hrOnRide' : 'workout.hrOn')}` : '');
   if (ride) {
     body.innerHTML = sel.steps.map((s, i) => {
       const dur = s.duration ? formatDuration(s.duration) : s.distance ? `${(s.distance / 1000).toFixed(2)} km` : '—';
       const w = s.power ? (s.power.lo === s.power.hi ? s.power.lo : `${s.power.lo}–${s.power.hi}`) : '—';
-      const hr = s.hr ? `${s.hr.lo}–${s.hr.hi}` : '—';
+      const hr = s.hr ? (s.hr.lo > 0 ? `${s.hr.lo}–${s.hr.hi}` : `≤ ${s.hr.hi}`) : '—';
       return `<tr data-i="${i}"><td>${i + 1}</td><td>${escapeHtml(s.label)}</td><td class="r num">${dur}</td>` +
         `<td class="r num">${w}</td><td class="r num">${hr}</td></tr>`;
     }).join('');
