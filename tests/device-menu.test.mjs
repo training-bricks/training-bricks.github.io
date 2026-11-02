@@ -13,12 +13,12 @@ test('device menu: treadmill, with and without debug', () => {
   assert.deepEqual(labels(menuEntries('treadmill', { last: { driver: 'nordictrack-exp5i', name: 'I_TL1234' } })), ['Connect treadmill (last: I_TL1234)']);
 });
 
-test('device menu: no real smart trainer driver yet', () => {
-  assert.equal(connectPlan('trainer').mode, 'none');
+test('device menu: the FTMS trainer driver connects through its own chooser', () => {
+  assert.equal(connectPlan('trainer').mode, 'single');
   const e = menuEntries('trainer');
-  assert.deepEqual(labels(e), ['No smart trainer support yet']);
-  assert.equal(e[0].disabled, true);
-  assert.deepEqual(labels(menuEntries('trainer', { debug: true })), ['No smart trainer support yet', 'Simulator: Simulated smart trainer']);
+  assert.deepEqual(labels(e), ['Connect smart trainer']);
+  assert.equal(e[0].disabled, false);
+  assert.deepEqual(labels(menuEntries('trainer', { debug: true })), ['Connect smart trainer', 'Simulator: Simulated smart trainer']);
 });
 
 test('device menu: a connected simulator offers its controls and Disconnect', () => {
@@ -26,7 +26,7 @@ test('device menu: a connected simulator offers its controls and Disconnect', ()
   assert.deepEqual(tm.map((x) => x.action), ['connect', 'simulator', 'sim-belt', 'disconnect']);
   assert.equal(tm[0].disabled, true);
   const tr = menuEntries('trainer', { debug: true, device: { connected: true, simulate() {} } });
-  assert.deepEqual(tr.map((x) => x.action), ['none', 'simulator', 'sim-pedal', 'disconnect']);
+  assert.deepEqual(tr.map((x) => x.action), ['connect', 'simulator', 'sim-pedal', 'disconnect']);
   // A real device without simulate(): just Disconnect
   assert.deepEqual(menuEntries('treadmill', { device: { connected: true } }).map((x) => x.action), ['connect', 'disconnect']);
 });

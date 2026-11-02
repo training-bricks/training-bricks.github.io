@@ -4,7 +4,9 @@
  *
  * To add or tweak workouts only data/library.json is edited; the format is in
  * README.md, Library section. Paces are in % of threshold or zones (adapted
- * to the profile by zones.resolveDoc) or fixed min/km.
+ * to the profile by zones.resolveDoc) or fixed min/km. Bike workouts (types
+ * and featured entries with "sport": "ride") use power in % of FTP or power
+ * zones instead (watts come from the cycling profile, workouts/ride.js).
  */
 
 /** "2m", "1m30s", "90s" → seconds. */
@@ -38,6 +40,25 @@ function paceTarget(pace) {
   throw new Error(`Invalid pace: "${pace}"`);
 }
 
+/** Power target of a bike segment: 70 or [55, 75] (% of FTP), or "Z2" (power zone). */
+function powerTarget(power) {
+  if (power == null) return {};
+  if (Array.isArray(power)) return { power: { units: '%ftp', start: power[0], end: power[1] } };
+  if (typeof power === 'number') return { power: { units: '%ftp', value: power } };
+  const zone = String(power).match(/^Z(\d)$/i);
+  if (zone) return { power: { units: 'power_zone', value: Number(zone[1]) } };
+  throw new Error(`Invalid power: "${power}"`);
+}
+
+function powerText(power) {
+  if (Array.isArray(power)) return `at ${power[0]}–${power[1]} % FTP`;
+  if (typeof power === 'number') return `at ${power} % FTP`;
+  return `in power ${String(power).toUpperCase()}`;
+}
+
+/** How a segment's target reads in a summary: power on a bike, pace on foot. */
+const targetText = (seg) => (seg.power != null ? powerText(seg.power) : paceText(seg.pace));
+
 function paceText(pace) {
   if (Array.isArray(pace)) return `at ${pace[0]}–${pace[1]} %`;
   if (typeof pace === 'number') return `at ${pace} %`;
@@ -47,7 +68,7 @@ function paceText(pace) {
 
 /** A library.json segment → workout_doc step. */
 function toStep(seg, extra = {}) {
-  const step = { duration: parseDur(seg.dur), ...paceTarget(seg.pace), ...extra };
+  const step = { duration: parseDur(seg.dur), ...paceTarget(seg.pace), ...powerTarget(seg.power), ...extra };
   if (seg.hr) step.hr = { units: 'hr_zone', value: Number(String(seg.hr).replace(/^Z/i, '')) };
   if (seg.ramp) step.ramp = true;
   if (seg.lock) step.lockSpeed = true;
@@ -73,7 +94,7 @@ function mainSet(level, sec) {
     }
     steps.push(toStep({ ...level.main, dur: main }));
     if (finish) steps.push(finish);
-    return { steps, summary: level.summary || `${fmtDur(main)} ${paceText(level.main.pace)}`, extra: 0 };
+    return { steps, summary: level.summary || `${fmtDur(main)} ${targetText(level.main)}`, extra: 0 };
   }
 
   if (level.kind === 'intervals') {
@@ -87,7 +108,7 @@ function mainSet(level, sec) {
     const used = reps * (work + rec);
     const steps = [{ reps, steps: [toStep(level.work), toStep(level.recovery)] }];
     const incl = level.work.incline != null ? ` with ${level.work.incline} %` : '';
-    const summary = level.summary || `${reps} × ${fmtDur(work)} ${paceText(level.work.pace)}${incl} · ${fmtDur(rec)} easy`;
+    const summary = level.summary || `${reps} × ${fmtDur(work)} ${targetText(level.work)}${incl} · ${fmtDur(rec)} easy`;
     return { steps, summary, extra: sec - used };
   }
 
@@ -118,8 +139,10 @@ function edge(type, defaults, key, minutes) {
   return defaults[key] || null;
 }
 
-/** A generated workout: type × duration × level. */
-export function buildWorkout(type, minutes, levelNum, defaults = {}) {
+/** A generated workout: type × duration × level. Bike types take the bike defaults (defaults.ride). */
+export function buildWorkout(type, minutes, levelNum, allDefaults = {}) {
+  const sport = type.sport ?? 'run';
+  const defaults = sport === 'ride' ? allDefaults.ride ?? {} : allDefaults;
   // byDuration: level overrides for a specific duration (sets, reps…)
   const base = type.levels[levelNum];
   const over = base.byDuration?.[minutes] || {};
@@ -136,11 +159,12 @@ export function buildWorkout(type, minutes, levelNum, defaults = {}) {
   const cdAdd = main.extra - wuAdd;
   const steps = [];
   if (wu) steps.push(toStep({ ...wu, dur: wuSec + wuAdd }, { warmup: true }));
-  else if (main.extra) steps.unshift(toStep({ dur: main.extra, pace: [70, 75] }));
+  else if (main.extra) steps.unshift(toStep({ dur: main.extra, ...(sport === 'ride' ? { power: [55, 65] } : { pace: [70, 75] }) }));
   steps.push(...main.steps);
   if (cd) steps.push(toStep({ ...cd, dur: cdSec + cdAdd }, { cooldown: true }));
   return {
     id: `${type.id}-${minutes}-${levelNum}`,
+    sport,
     type: type.id,
     typeName: type.name,
     minutes,
@@ -160,6 +184,7 @@ export function buildLibrary(json) {
   for (const f of json.featured || []) {
     out.push({
       id: f.id,
+      sport: f.sport ?? 'run',
       type: f.type,
       typeName: json.types.find((t) => t.id === f.type)?.name || f.type,
       minutes: f.minutes,
@@ -181,7 +206,7 @@ export function buildLibrary(json) {
 }
 
 /** Types for the filters, in file order. */
-export const libraryTypes = (json) => json.types.map((t) => ({ id: t.id, name: t.name }));
+export const libraryTypes = (json) => json.types.map((t) => ({ id: t.id, name: t.name, sport: t.sport ?? 'run' }));
 
 export async function loadLibrary(url = new URL('../../data/library.json', import.meta.url)) {
   const res = await fetch(url, { cache: 'no-cache' });

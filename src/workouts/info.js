@@ -13,10 +13,9 @@ export function workoutSeconds(doc) {
 
 /**
  * Whether HR can steer a workout: library workouts say so (hrControl), the
- * Intervals.icu ones are judged by their steps. Rides never (no trainer yet).
+ * Intervals.icu ones are judged by their steps (speed on foot, watts on a bike).
  */
 export function hrControllable(w, zones) {
   if (w.hrControl != null) return w.hrControl;
-  if (w.sport === 'ride') return false;
   return followsHr(flattenWorkout(resolveDoc(w.workout_doc, zones), { zones }));
 }

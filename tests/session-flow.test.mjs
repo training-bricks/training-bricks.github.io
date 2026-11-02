@@ -151,10 +151,10 @@ test('csv (#10): step, HR range, HR adjustment and the reason of each change', (
   const h = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
   h.run(80, { hr: 160 });
   const csv = samplesToCsv(h.session.samples).split('\n');
-  assert.match(csv[0], /,step,hr_lo,hr_hi,hr_adjust_kmh,reason$/);
+  assert.match(csv[0], /,step,hr_lo,hr_hi,hr_adjust,reason,power_w,cadence_rpm,target_w$/);
   const changed = csv.filter((l) => /aiming at/.test(l));
   assert.equal(changed.length, 1);
-  assert.match(changed[0], /,1,135,150,-0\.5,"?HR → \d+, aiming at 141"?$/);
+  assert.match(changed[0], /,1,135,150,-0\.5,"?HR → \d+, aiming at 141"?,,,$/);
 });
 
 test('flow: at the end the belt slows down to a walk, 0.5 km/h every 2 s, holds 5 s, then pauses', () => {
@@ -212,5 +212,6 @@ test('flow: the real treadmill simulator drives a session', async () => {
 
 test('csv: ride samples (no incline) export', () => {
   const csv = samplesToCsv([{ elapsed: 1, distance: 8, speed: 30, power: 200, cadence: 90, hr: 120, target: 200 }]);
-  assert.match(csv.split('\n')[1], /^1,30\.00,2:00,200,,120,8\.0,,,,,,,$/);
+  // A ride: no pace, incline nor target speed; power, cadence and the target in watts at the end
+  assert.match(csv.split('\n')[1], /^1,30\.00,,,,120,8\.0,,,,,,,,200,90,200$/);
 });

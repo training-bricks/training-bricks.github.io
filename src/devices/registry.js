@@ -6,11 +6,12 @@
 import exp5i from './treadmill/nordictrack-exp5i/index.js';
 import ftmsTreadmill from './treadmill/ftms/index.js';
 import simulatedTreadmill from './treadmill/simulated/index.js';
+import ftmsTrainer from './trainer/ftms/index.js';
 import simulatedTrainer from './trainer/simulated/index.js';
 import hrStrap from './sensors/hr-strap/index.js';
 
 /** @type {import('./types.js').DriverDescriptor[]} */
-export const DRIVERS = [exp5i, ftmsTreadmill, simulatedTreadmill, simulatedTrainer, hrStrap];
+export const DRIVERS = [exp5i, ftmsTreadmill, simulatedTreadmill, ftmsTrainer, simulatedTrainer, hrStrap];
 
 export const driversFor = (kind, { debug = false } = {}) => DRIVERS.filter((d) => d.kind === kind && (debug || !d.debugOnly));
 

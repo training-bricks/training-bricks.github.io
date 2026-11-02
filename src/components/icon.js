@@ -22,6 +22,8 @@ const ICONS = {
   upload: '<path d="M7.5 18H7a4 4 0 0 1-.6-7.95A5.5 5.5 0 0 1 17.2 9 4.5 4.5 0 0 1 17 18h-.5"/><path d="M12 12.5V20M9 15.5l3-3 3 3"/>',
   incline: '<path d="M3 19h18L21 7z"/><path d="M15 19a4.5 4.5 0 0 0-1.2-3.4"/>',
   pace: '<path d="M4.5 17a8.5 8.5 0 1 1 15 0"/><path d="M12 14l4-5"/><circle cx="12" cy="14" r="1.2"/>',
+  power: '<path d="M13 2.5L5.5 13.5H12l-1 8 7.5-11H12z"/>',
+  cadence: '<circle cx="12" cy="12" r="7.5"/><circle cx="12" cy="12" r="1.5"/><path d="M12 12l4-6.5M16 5.5h2.5"/>',
   warning: '<path d="M10.3 4.2L2.8 17.5A2 2 0 0 0 4.5 20.5h15a2 2 0 0 0 1.7-3L13.7 4.2a2 2 0 0 0-3.4 0z"/><path d="M12 9.5v4.5"/><circle class="fill" cx="12" cy="17" r="1.1"/>',
 };
 

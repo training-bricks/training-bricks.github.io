@@ -26,7 +26,7 @@ export function selectWorkout(key = selectedKey) {
   if (key.startsWith('i:')) event = app.state.planned?.[Number(key.slice(2))] || null;
   if (key.startsWith('l:')) {
     const w = app.state.library.entries.find((x) => x.id === key.slice(2));
-    if (w) event = { name: w.name, description: w.description, workout_doc: w.workout_doc, library: true, hrControl: w.hrControl };
+    if (w) event = { name: w.name, description: w.description, workout_doc: w.workout_doc, library: true, hrControl: w.hrControl, sport: w.sport };
   }
   selectedKey = event ? key : 'none';
   settings.set('workout', selectedKey.startsWith('l:') ? selectedKey : '');
@@ -35,7 +35,7 @@ export function selectWorkout(key = selectedKey) {
     const ride = event.sport === 'ride';
     const z = app.zonesFor(event);
     const needsProfile = ride ? !z?.ftp : event.library && !app.state.zones?.thresholdKmh;
-    const hrControl = hrControllable(event, app.state.zones);
+    const hrControl = hrControllable(event, z);
     const { position, defaultIncline, hrAdjust } = app.state.workoutOptions;
     const hrOn = hrControl && hrAdjust;
     const steps = flattenWorkout(resolveDoc(event.workout_doc, z), { position, defaultIncline, zones: z, hrTargets: hrOn });

@@ -6,9 +6,12 @@
  *   not projected: a short dip must not ask for more speed (#10).
  * - Steps with an HR target aim at the middle of the range, or lower on
  *   aerobic steps (AEROBIC_AIM), not at its top.
- * - The correction is proportional to how far off HR is (GAIN km/h per bpm,
- *   between MIN_STEP and MAX_STEP). Rises are smaller (MAX_RISE) and never
- *   happen while HR is still climbing: HR lags 1–2 min behind speed (#10).
+ * - The correction is proportional to how far off HR is (gain per bpm,
+ *   between a smallest and a largest step). Rises are smaller and never
+ *   happen while HR is still climbing: HR lags 1–2 min behind effort (#10).
+ * - The actuator says the units: SPEED (km/h, treadmill) or POWER (W, smart
+ *   trainer in ERG, #8). The rules and the timing are the same: what limits
+ *   them is how slowly HR answers, not the device.
  * - Steps that follow HR by incline use the same decision, turned into
  *   incline by inclineStep().
  * - α1 guard: on aerobic steps (Z1–Z2), a sustained α1 below VT1 means the
@@ -28,18 +31,22 @@ export const LEAD_S = 30;        // how far ahead HR is projected
 export const SLOPE_WINDOW_S = 30; // samples used for the HR slope (20 s was too noisy, #10)
 export const AEROBIC_AIM = 0.4;  // HR-target steps in Z1–Z2 aim at 40 % of the range (VT1 sits near the middle of Z2, #10)
 const DEADBAND = 3;              // bpm around the aim of the range that count as on target
-const GAIN = 0.1;                // km/h per bpm off target
-const MIN_STEP = 0.1;
-const MAX_STEP = 0.5;
-const MAX_RISE = 0.2;            // km/h per rise: going up overshoots, going down does not (#10)
 const RISING = 0.05;             // bpm/s (3 bpm/min): HR still climbing, so no rise yet
-const ALPHA_STEP = 0.2;          // km/h per α1 correction
-const CAP_MARGIN = 5;            // pace steps give speed back once HR is this far below the cap
+const CAP_MARGIN = 5;            // pace (or power) steps give back once HR is this far below the cap
 const INCLINE_STEP = 0.5;        // % per incline correction (the treadmill's resolution)
 
-const round1 = (v) => Math.round(v * 10) / 10;
-const stepFor = (bpm) => round1(Math.min(MAX_STEP, Math.max(MIN_STEP, GAIN * bpm)));
-const riseFor = (bpm) => Math.min(MAX_RISE, stepFor(bpm));
+/**
+ * What HR moves, in its units: gain per bpm off target, smallest and largest
+ * step, largest rise (going up overshoots, going down does not, #10), the α1
+ * correction, the most it may take away or add in a step, and its rounding.
+ */
+export const SPEED = { unit: 'km/h', gain: 0.1, minStep: 0.1, maxStep: 0.5, maxRise: 0.2, alphaStep: 0.2, maxDown: 2.0, maxUp: 1.5, decimals: 1 };
+/** Watts on a smart trainer in ERG: about 2.5 W per bpm (#8, to be tuned on real rides). */
+export const POWER = { unit: 'W', gain: 2.5, minStep: 3, maxStep: 15, maxRise: 5, alphaStep: 5, maxDown: 40, maxUp: 30, decimals: 0 };
+
+export const roundTo = (v, decimals) => Math.round(v * 10 ** decimals) / 10 ** decimals;
+const stepFor = (bpm, a) => roundTo(Math.min(a.maxStep, Math.max(a.minStep, a.gain * bpm)), a.decimals);
+const riseFor = (bpm, a) => Math.min(a.maxRise, stepFor(bpm, a));
 
 /** HR slope (bpm/s) by least squares over `samples` ({elapsed, hr}). */
 export function hrSlope(samples) {
@@ -58,17 +65,20 @@ export function hrSlope(samples) {
 }
 
 /**
- * Speed change (km/h) the HR asks for right now; 0 = leave it.
+ * Change (in the actuator's units: km/h by default, W with POWER) the HR asks
+ * for right now; 0 = leave it.
  * @param {{mode: 'cap'|'target', lo: number, hi: number, hr: number, slope: number,
  *          hrAdjust: number, alphaVeto?: boolean, alphaDrop?: boolean, giveBack?: boolean, aim?: number}} p
- *   hrAdjust: km/h already removed (< 0) or added (> 0) in this step.
+ *   hrAdjust: already removed (< 0) or added (> 0) in this step, in the actuator's units.
  *   alphaVeto: α1 is below VT1 on an aerobic step: no rise.
  *   alphaDrop: and speed should come down for it (see alphaDropApplies).
  *   giveBack: a capped step may return what HR took (not in the cool-down).
  *   aim: where in the range an HR target aims (0 = bottom, 0.5 = middle).
+ * @param actuator SPEED (default) or POWER
  * @returns {{delta: number, reason: string, alpha: boolean}} alpha: the change is the α1 drop.
  */
-export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = false, alphaDrop = false, giveBack = true, aim = 0.5 }) {
+export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = false, alphaDrop = false, giveBack = true, aim = 0.5 }, actuator = SPEED) {
+  const a = actuator;
   const projected = hr + Math.max(0, slope) * LEAD_S;
   const climbing = slope > RISING;
   let delta = 0;
@@ -78,29 +88,29 @@ export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = fals
     const goal = lo + (hi - lo) * aim;
     const off = projected - goal;
     if (off > DEADBAND) {
-      delta = -stepFor(off - DEADBAND);
+      delta = -stepFor(off - DEADBAND, a);
       reason = `HR → ${Math.round(projected)}, aiming at ${Math.round(goal)}`;
     } else if (off < -DEADBAND && !alphaVeto && !climbing) {
-      delta = riseFor(-off - DEADBAND);
+      delta = riseFor(-off - DEADBAND, a);
       reason = `HR → ${Math.round(projected)}, aiming at ${Math.round(goal)}`;
     }
   } else if (mode === 'cap') {
     if (projected > hi) {
-      delta = -stepFor(projected - hi);
+      delta = -stepFor(projected - hi, a);
       reason = `HR → ${Math.round(projected)}, cap ${hi}`;
     } else if (giveBack && hrAdjust < 0 && hr < hi - CAP_MARGIN && slope <= 0 && !alphaVeto) {
-      delta = Math.min(-hrAdjust, riseFor(hi - CAP_MARGIN - hr));
+      delta = Math.min(-hrAdjust, riseFor(hi - CAP_MARGIN - hr, a));
       reason = `HR ${hr} back under cap ${hi}`;
     }
   }
 
   let alpha = false;
   if (alphaDrop && delta >= 0) {
-    delta = -ALPHA_STEP;
+    delta = -a.alphaStep;
     reason = `α1 below ${VT1} with HR ${hr}`;
     alpha = true;
   }
-  return { delta: round1(delta), reason, alpha };
+  return { delta: roundTo(delta, a.decimals), reason, alpha };
 }
 
 /** Whether a low α1 blocks rises on a step: aerobic (Z1–Z2), not the warm-up nor the cool-down. */

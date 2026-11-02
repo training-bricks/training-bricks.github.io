@@ -24,7 +24,7 @@ npm start            # python3 tools/serve.py 8000; open http://localhost:8000
 
 **Intervals.icu:** in **Profile**, paste your API key (Intervals.icu → Settings → Developer Settings) and press **Sign in**. The page calls the Intervals.icu API directly, which accepts cross-origin requests. The key is stored only in that browser's `localStorage`: it is not in the code or on the host. If someone might have seen it, regenerate it in Intervals.icu and press **Sign out**. Without a key, the library, the manual profile and the TCX download still work.
 
-The page has a vertical bar of icons on the left: **Home** and **Training library** at the top, **Configuration** and **User profile** at the bottom, and between them contextual buttons (**Run** for treadmill workouts, **Ride** for bike workouts, **Debug**). **Ride** only shows the selected bike workout (power and HR by zone); riding on a bike trainer is not supported yet.
+The page has a vertical bar of icons on the left: **Home** and **Training library** at the top, **Configuration** and **User profile** at the bottom, and between them contextual buttons (**Run** for treadmill workouts, **Ride** for bike workouts on a smart trainer, **Debug**). Run and Ride have the same shape: the chart, a bar with the session buttons, and the controls of their device.
 
 **Configuration** picks the color palette (System, Light, Dark, Monochrome, Vivid) and the language (System — the browser's —, English, Spanish or French). Both are kept in `localStorage` (`brickwise.theme`, `brickwise.lang`). The palette changes only the app chrome: chart and training zone colors are the same in every palette.
 
@@ -33,6 +33,7 @@ The page has a vertical bar of icons on the left: **Home** and **Training librar
 - **Profile (person):** works like a sign-in. Signed out, you paste your Intervals.icu API key and press **Sign in**, or enter threshold pace, LTHR and max HR by hand (without LTHR it is estimated as 91 % of max HR). Signed in, you see your Intervals.icu name, photo and city, your key data (threshold pace, LTHR, max HR, resting HR and weight), the zone table, **Refresh** and **Sign out**. Signing out deletes the key and keeps the data as a manual profile.
 - **Training library (clipboard):** the library (`data/library.json`), with three dropdowns to filter by duration (30, 45 or 60 min), type and level (1–5). Workouts are in % of threshold pace and zones, so they adapt to the profile; Intervals workouts also use the profile's threshold when their steps are in % or zones. On the workout page you choose the pace within the zone, the base incline and whether speed is adjusted by HR.
 - **Run (runner):** a bar with distance, time and HR, the buttons ▶ start, ⏭ skip step, ■ finish, download (CSV or TCX) and upload to Intervals.icu, and incline and pace with their + and − buttons (0.5 % and 0.5 km/h); below, a line with the session status and the chart.
+- **Ride (bike):** the same bar (`<bw-session-bar>`, shared with Run), and power (ERG target ± 5 W) and cadence; resistance ± 5 % by hand on a free ride. See [Riding on a smart trainer](#riding-on-a-smart-trainer).
 - **Debug (bug):** only shows when the page is opened with `?debug=true`. It has the treadmill state and the communication log.
 
 1. Turn on the treadmill, attach the safety key and, on the **Run** tab, press the **Treadmill** pill at the top and choose **Connect treadmill** (it shows up as `I_TL…`). Activation takes ~10 s.
@@ -41,7 +42,7 @@ The page has a vertical bar of icons on the left: **Home** and **Training librar
 4. Press **▶ (start)** and then **START on the console**. The workout begins when the belt moves.
 5. When done: the **upload to Intervals.icu** icon (needs the API key) or the **download** icon (CSV or TCX). Library workouts are uploaded unpaired.
 
-**Simulators** (in the Treadmill and Trainer pill menus, only with `?debug=true`) test everything without hardware (including a simulated HR if no strap is connected). The Trainer pill (Ride tab) connects a smart trainer for manual ERG or resistance control; riding workouts on it comes later.
+**Simulators** (in the Treadmill and Trainer pill menus, only with `?debug=true`) test everything without hardware (including a simulated HR if no strap is connected); the trainer simulator starts pedaling from its pill menu.
 
 ## Library (`data/library.json`)
 
@@ -55,6 +56,8 @@ To add or tweak workouts only `data/library.json` is edited; the page reads it o
 | `pace` | `72`, `[104, 108]` | % of threshold pace (a range is a ramp if `"ramp": true`) |
 | | `"Z2"` | profile pace zone |
 | | `"12:00"` | fixed pace in min/km (does not depend on the profile) |
+| `power` | `65`, `[56, 62]` | bike workouts: % of FTP (a range is a ramp if `"ramp": true`) |
+| | `"Z2"` | profile power zone |
 | `hr` | `"Z2"` | target HR zone |
 | `hrBy` | `"incline"` | the HR target moves the incline instead of the speed |
 | `test` | `true` | step of the threshold test ramp |
@@ -164,7 +167,7 @@ Results are kept in **Profile › Threshold tests** (last 20, in this browser). 
 | `manifest.webmanifest`, `sw.js`, `icons/` | Installable app (PWA): name, colors and icons; the service worker serves the latest version from the network and the cached copy when offline. `tools/icons.sh` renders the PNG icons from the SVGs |
 | `pages/*.html` | One file per page (home, config, profile, workouts, workout, run, ride, debug) |
 | `src/main.js`, `src/lib/pages.js` | Startup: loads every page in parallel, then calls each UI module's `init…()` and loads the data |
-| `src/components/` | Reusable custom elements (light DOM, so `css/app.css` and the palettes apply): `bw-icon`, `bw-user-card` (Home and Profile), `bw-zone-table` (running and cycling), `bw-workout-list` (Home and library), `bw-chart` (workout page and Run). Data goes in through properties; actions come out as bubbling events (`bw-select`, `bw-refresh`, `bw-signout`) |
+| `src/components/` | Reusable custom elements (light DOM, so `css/app.css` and the palettes apply): `bw-icon`, `bw-user-card` (Home and Profile), `bw-zone-table` (running and cycling), `bw-workout-list` (Home and library), `bw-chart` (workout page, Run and Ride), `bw-session-bar` (Run and Ride). Data goes in through properties; actions come out as bubbling events (`bw-select`, `bw-refresh`, `bw-signout`) |
 | `src/ui/format.js` | UI text without the DOM (account stats, zone tables): pure functions, tested in Node |
 | `src/state.js` | App-wide state (profile and zones, the workout picked, connected devices, account) with change events; no DOM |
 | `src/ui/tabs.js` | Which tab or page is shown |
@@ -178,8 +181,9 @@ Results are kept in **Profile › Threshold tests** (last 20, in this browser). 
 | `src/ui/library.js` | Training library and its filters |
 | `src/ui/selection.js` | The workout picked: turns it into steps for the current zones and options, remembers library picks |
 | `src/ui/workout.js` | Workout page: options, steps table, totals and preview |
-| `src/ui/ride.js` | Ride tab: the selected bike workout's chart (power axis), view only |
-| `src/ui/run.js` | Run tab: live numbers, session buttons, chart, export and upload |
+| `src/ui/ride.js` | Ride tab: power, cadence, ERG ± 5 W and resistance on a free ride, the trainer's notes |
+| `src/ui/run.js` | Run tab: pace and incline with their + and − buttons, the treadmill's notes, pausing the belt when the page closes |
+| `src/ui/session-screen.js` | What Run and Ride share: the plan on the session's time line, the chart update, the `<bw-session-bar>` values (distance, time, HR, α1) and buttons, export (CSV, TCX) and upload |
 | `src/ui/debug.js` | Debug tab: communication log and console state |
 | `src/ui/session-chart.js` | Chart of actual data over the workout by zones (SVG, no libraries) |
 | `src/ui/chart-axes.js` | The chart's left axis, one object per kind (pace for runs, power for bike workouts): zones, domain, block heights, ticks, unit, tooltip |
@@ -214,6 +218,26 @@ Results are kept in **Profile › Threshold tests** (last 20, in this browser). 
 | `src/lib/dom.js`, `src/lib/sound.js` | DOM helpers and beeps |
 | `tools/serve.py` | Static server for local development (not deployed) |
 | `tests/` | Hardware-free tests by area (`*.test.mjs`, shared data in `fixtures.mjs`): `npm test` |
+
+## Riding on a smart trainer
+
+Bike workouts (Intervals.icu rides and the library's bike types) run on the **Ride** page, with any smart trainer that speaks Bluetooth **FTMS** (Wahoo KICKR, Elite, Saris, Zwift Hub, recent Tacx…). Close Zwift or the trainer's app first: only one app can control it.
+
+1. On **Ride**, press the **Trainer** pill → **Connect smart trainer** (and the **HRM** pill for a strap).
+2. Pick a bike workout in Home or the library (or none, for a free ride) and press **▶ (start)**.
+3. Start pedaling: the session begins above 20 rpm and pauses when you stop.
+4. In **ERG** the trainer holds each step's watts. A change is spread over 2.5 s so a big jump does not stall the legs. **+ / −** shift the step by 5 W (on a free ride they set the target directly; resistance ± 5 % is there too).
+5. **■** ends the session and releases the trainer. Download or upload as on Run: the TCX is a *Biking* activity with power and cadence on every point.
+
+**Watts by HR (HR-controlled ERG):** with **Adjust watts by HR** on the workout page, the watts follow HR with the same rules as the treadmill's speed (see *Zones and HR adjustment*): projection, aim at 40 % of Z2, proportional corrections, the α1 guard, and the same grace and spacing, since HR is what lags. Only the actuator changes:
+- about **2.5 W per bpm**, between 3 and 15 W per correction;
+- at most **+5 W** per rise;
+- **5 W** per α1 drop;
+- within **−40 / +30 W** of the step.
+
+A step with an HR target (the library's *Z2 ride by heart rate*) starts from the power zone in the same position. Power steps get the HR zone in the same position as a cap, or as a target on long aerobic steps. Bike workouts use the cycling zones (FTP, power and HR zones from Intervals.icu's Ride settings).
+
+On iPhone or iPad Web Bluetooth needs a browser like Bluefy. The FTMS trainer driver is written from the specification and tested against a simulated Bluetooth device, not yet on a real trainer (#7).
 
 ## Supported treadmills
 

@@ -87,6 +87,7 @@
   --series-speed: #2a78d6;
   --series-incline: #1baf7a;
   --series-hr: #eb6834;
+  --series-power: var(--series-speed);
   --zone-free: #c4c9d0; --zone-1: #8c939d; --zone-2: #3d84e0; --zone-3: #22a06b;
   --zone-4: #e0b030; --zone-5: #ef7a2d; --zone-6: #e0442b; --zone-7: #7c5cd6;
 }

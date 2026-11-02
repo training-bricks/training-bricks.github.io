@@ -115,7 +115,7 @@ export async function uploadTcx(tcx, meta) {
   form.append('file', new Blob([tcx], { type: 'application/vnd.garmin.tcx+xml' }), 'brickwise.tcx');
   return request('/activities', {
     method: 'POST',
-    query: { ...meta, device_name: 'NordicTrack EXP 5i' },
+    query: { device_name: 'Brickwise', ...meta }, // meta.device_name: the treadmill or trainer used
     body: form,
   });
 }

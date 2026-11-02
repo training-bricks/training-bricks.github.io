@@ -59,7 +59,7 @@ class BwWorkoutList extends HTMLElement {
       const tag = document.createElement('em');
       tag.className = 'hr-tag';
       tag.textContent = '♥ HR';
-      tag.title = t('library.hrTag');
+      tag.title = t(sport === 'ride' ? 'library.hrTagRide' : 'library.hrTag');
       btn.append(strong, tag);
     } else btn.append(strong);
     if (sub) btn.title = sub;
