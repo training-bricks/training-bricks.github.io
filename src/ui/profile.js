@@ -14,6 +14,8 @@ import * as intervals from '../services/intervals.js';
 import { log } from './debug.js';
 import { loadWorkouts } from './home.js';
 import { loadTests, vtText } from '../session/test-history.js';
+import { loadRuns, decouplingText, vt1Text } from '../session/run-history.js';
+import { vt1Trend } from '../physiology/aerobic.js';
 import { events as sessionEvents } from '../session/runner.js';
 import { t } from '../i18n/index.js';
 
@@ -96,6 +98,7 @@ export function renderProfile() {
 
   renderZoneTables();
   renderTests();
+  renderRuns();
 }
 
 /** Profile: running and cycling zone tables. */
@@ -175,10 +178,28 @@ export function renderTests() {
     : t('profile.useVt2');
 }
 
+/** Profile: steady aerobic runs with Pa:HR and VT1 from α1 (session/run-history.js), and the VT1 trend. */
+export function renderRuns() {
+  const runs = loadRuns();
+  $('pRunsCard').classList.toggle('hidden', !runs.length);
+  const trend = vt1Trend(runs);
+  $('pRunsTrend').textContent = trend ? t('profile.vt1Trend', { hr: trend.hr, n: trend.runs }) : '';
+  $('pRuns').replaceChildren(...runs.map((r) => {
+    const tr = document.createElement('tr');
+    for (const v of [formatDate(r.date), r.name ?? t('profile.freeRun'), t('common.minutes', { n: r.decoupling.minutes }), decouplingText(r.decoupling), vt1Text(r)]) {
+      const td = document.createElement('td');
+      td.textContent = v;
+      tr.appendChild(td);
+    }
+    return tr;
+  }));
+}
+
 /** Startup: sign in, the manual profile, the account buttons and the tests. */
 export function initProfile() {
   document.addEventListener('bw-language', renderProfile);
   sessionEvents.on('test', renderTests);
+  sessionEvents.on('run', renderRuns);
   $('pKeySave').onclick = async () => {
     const key = $('pKey').value.trim();
     if (!key) return;

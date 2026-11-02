@@ -66,7 +66,7 @@ test('i18n: no visible English text is left without a key in the page HTML', () 
   // Text written by the code (ids below) and names that are not translated are skipped
   const BY_CODE = ['wName', 'wDesc', 'wTotal', 'wLibCount', 'sessionNote', 'pNote', 'pKeyNote', 'pTestApply', 'rideNote', 'cInfo', 'btnStart', 'btnUpload', 'devTables', 'log', 'pillTreadmill', 'pillTrainer', 'pillHr',
     'mPace', 'mSpeedSub', 'mHr', 'mHrSub', 'mAlpha', 'mAlphaSub', 'mDist', 'mTime', 'mIncline', 'mInclineSub', 'rtPower', 'rtCadence', 'rtSpeed', 'rtTarget', 'rtLevel'];
-  const KEEP = new Set(['Brickwise', 'Intervals.icu', 'HRM', 'Treadmill', 'Trainer', 'km', 'bpm', 'min/km', 'W', 'rpm', 'km/h', 'α1', '%']);
+  const KEEP = new Set(['Brickwise', 'Intervals.icu', 'HRM', 'Treadmill', 'Trainer', 'km', 'bpm', 'min/km', 'W', 'rpm', 'km/h', 'α1', '%', 'Pa:HR']);
   for (const file of ['../index.html', ...PAGE_FILES.map((n) => `../pages/${n}.html`)]) {
     const html = read(file).replace(/<!--[\s\S]*?-->/g, '').replace(/<(script|style)[\s\S]*?<\/\1>/g, '');
     const stack = [];

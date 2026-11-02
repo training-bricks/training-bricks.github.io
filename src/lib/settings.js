@@ -14,6 +14,7 @@ export const SETTINGS = {
   athlete:      { type: 'json' },                       // Intervals.icu account (name, photo, place)
   wellness:     { type: 'json' },                       // latest weight, sleep, resting HR, HRV
   tests:        { type: 'json', fallback: [] },         // threshold test history
+  runs:         { type: 'json', fallback: [] },         // steady aerobic runs with their metrics (#4)
   libFilter:    { type: 'json', fallback: {} },         // library filters
   tab:          { type: 'text' },                       // last tab or page shown
   workout:      { type: 'text' },                       // last library workout picked
