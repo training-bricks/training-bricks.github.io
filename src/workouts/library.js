@@ -3,7 +3,7 @@
  * workout_docs, for every duration (30, 45, 60 min) and level (1–5).
  *
  * To add or tweak workouts only data/library.json is edited; the format is in
- * README.md, Library section. Paces are in % of threshold or zones (adapted
+ * the wiki, "Workout library format". Paces are in % of threshold or zones (adapted
  * to the profile by zones.resolveDoc) or fixed min/km. Bike workouts (types
  * and featured entries with "sport": "ride") use power in % of FTP or power
  * zones instead (watts come from the cycling profile, workouts/ride.js).

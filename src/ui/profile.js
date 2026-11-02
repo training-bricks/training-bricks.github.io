@@ -14,7 +14,7 @@ import * as intervals from '../services/intervals.js';
 import { log } from './debug.js';
 import { loadWorkouts } from './home.js';
 import { loadTests, vtText } from '../session/test-history.js';
-import { loadRuns, decouplingText, vt1Text } from '../session/run-history.js';
+import { loadRuns, decouplingText, decouplingLabel, vt1Text } from '../session/run-history.js';
 import { vt1Trend } from '../physiology/aerobic.js';
 import { events as sessionEvents } from '../session/runner.js';
 import { t } from '../i18n/index.js';
@@ -178,15 +178,27 @@ export function renderTests() {
     : t('profile.useVt2');
 }
 
-/** Profile: steady aerobic runs with Pa:HR and VT1 from α1 (session/run-history.js), and the VT1 trend. */
+/**
+ * Profile: steady aerobic runs and rides with their decoupling (Pa:HR or
+ * Pw:HR) and VT1 from α1 (session/run-history.js), and a VT1 trend per
+ * sport: HR at VT1 is lower on the bike.
+ */
 export function renderRuns() {
   const runs = loadRuns();
   $('pRunsCard').classList.toggle('hidden', !runs.length);
-  const trend = vt1Trend(runs);
-  $('pRunsTrend').textContent = trend ? t('profile.vt1Trend', { hr: trend.hr, n: trend.runs }) : '';
+  const trends = [['run', 'profile.vt1Trend'], ['ride', 'profile.vt1TrendRide']]
+    .map(([sport, key]) => [vt1Trend(runs, 5, sport), key])
+    .filter(([trend]) => trend);
+  $('pRunsTrend').replaceChildren(...trends.map(([trend, key]) => {
+    const line = document.createElement('div');
+    line.textContent = t(key, { hr: trend.hr, n: trend.runs });
+    return line;
+  }));
   $('pRuns').replaceChildren(...runs.map((r) => {
     const tr = document.createElement('tr');
-    for (const v of [formatDate(r.date), r.name ?? t('profile.freeRun'), t('common.minutes', { n: r.decoupling.minutes }), decouplingText(r.decoupling), vt1Text(r)]) {
+    const cells = [formatDate(r.date), r.name ?? t('profile.freeRun'), t('common.minutes', { n: r.decoupling.minutes }),
+      `${decouplingLabel(r)} ${decouplingText(r.decoupling, r.sport)}`, vt1Text(r)];
+    for (const v of cells) {
       const td = document.createElement('td');
       td.textContent = v;
       tr.appendChild(td);

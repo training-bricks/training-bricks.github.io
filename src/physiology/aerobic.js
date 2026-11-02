@@ -1,12 +1,12 @@
 /**
- * Metrics of a steady aerobic run (#4), from the session samples
- * ({ elapsed, speed, incline, hr, alpha1, step }):
+ * Metrics of a steady aerobic run or ride (#4), from the session samples
+ * ({ elapsed, speed, incline, power, cadence, hr, alpha1, step }):
  *
- * - Aerobic decoupling (Pa:HR): how much efficiency (flat-equivalent speed ÷
- *   HR) falls from the first half of the steady part to the second. Under
- *   5 % suggests a solid aerobic base for that pace; over 10 %, the pace was
- *   too much that day. With HR control HR stays flat, so it shows as speed
- *   dropping.
+ * - Aerobic decoupling (Pa:HR on a run, Pw:HR on a ride): how much
+ *   efficiency (flat-equivalent speed or watts ÷ HR) falls from the first
+ *   half of the steady part to the second. Under 5 % suggests a solid
+ *   aerobic base for that effort; over 10 %, it was too much that day. With
+ *   HR control HR stays flat, so it shows as speed or watts dropping.
  * - HR at VT1 of the session: where α1 crosses 0.75, from a straight line
  *   α1 = f(HR) as in the threshold test (thresholds.js). A steady run moves
  *   HR little, so the line needs the warm-up's rise, and it is fitted on the
@@ -23,6 +23,7 @@ import { flatKmh, fit, POINT_EVERY_S } from './thresholds.js';
 export const STEADY_MIN_S = 20 * 60;  // shortest steady part with metrics
 export const SETTLE_S = 5 * 60;       // first minutes of the steady part left out (HR settling)
 const MOVING_KMH = 0.5;
+const PEDALING_RPM = 20;
 const ALPHA_FROM_S = 180;             // α1 values from the first 3 min are not in steady state
 const FIT_RANGE = [0.3, 1.1];         // as in the threshold test
 const MIN_POINTS = 24;                // 2 min of α1 values (one every 5 s)
@@ -40,7 +41,18 @@ const median = (xs) => {
 const round = (v, d = 0) => Math.round(v * 10 ** d) / 10 ** d;
 
 /**
- * Whether a run's metrics make sense: every step that is not a warm-up or
+ * What efficiency divides by HR in each sport: flat-equivalent speed on a
+ * run, watts on a ride (a trainer's speed is virtual). `key` names it in
+ * the decoupling halves.
+ */
+export const EFFORT = {
+  run: { key: 'kmh', decimals: 2, label: 'Pa:HR', moving: (s) => s.speed >= MOVING_KMH, of: (s) => flatKmh(s.speed, s.incline || 0) },
+  ride: { key: 'w', decimals: 0, label: 'Pw:HR', moving: (s) => s.power > 0 && (s.cadence ?? 0) >= PEDALING_RPM, of: (s) => s.power },
+};
+const effortOf = (sport) => EFFORT[sport] ?? EFFORT.run;
+
+/**
+ * Whether a session's metrics make sense: every step that is not a warm-up or
  * a cool-down is aerobic (Z1–Z2) and none is a test. A free session
  * (no steps) counts too.
  */
@@ -51,31 +63,33 @@ export function isAerobicRun(steps = []) {
 
 /**
  * The steady part: samples of the main steps (not warm-up nor cool-down),
- * moving, with HR, minus its first SETTLE_S seconds.
+ * moving (or pedaling), with HR, minus its first SETTLE_S seconds.
  */
-export function steadyPart(samples, steps = []) {
+export function steadyPart(samples, steps = [], sport = 'run') {
   const edge = (n) => n != null && (steps[n - 1]?.warmup || steps[n - 1]?.cooldown);
-  const main = samples.filter((s) => !edge(s.step) && s.speed >= MOVING_KMH && s.hr > 0);
+  const { moving } = effortOf(sport);
+  const main = samples.filter((s) => !edge(s.step) && moving(s) && s.hr > 0);
   if (!main.length) return [];
   const from = main[0].elapsed + SETTLE_S;
   return main.filter((s) => s.elapsed >= from);
 }
 
-/** Pa:HR decoupling of the steady part, or null when it is shorter than STEADY_MIN_S. */
-export function decoupling(steady) {
+/** Pa:HR (Pw:HR) decoupling of the steady part, or null when it is shorter than STEADY_MIN_S. */
+export function decoupling(steady, sport = 'run') {
   if (!steady.length || steady.at(-1).elapsed - steady[0].elapsed < STEADY_MIN_S) return null;
+  const { key, decimals, of } = effortOf(sport);
   const mid = (steady[0].elapsed + steady.at(-1).elapsed) / 2;
   const ef = (part) => {
-    const kmh = part.reduce((a, s) => a + flatKmh(s.speed, s.incline || 0), 0) / part.length;
+    const effort = part.reduce((a, s) => a + of(s), 0) / part.length;
     const hr = part.reduce((a, s) => a + s.hr, 0) / part.length;
-    return { kmh, hr, ef: kmh / hr };
+    return { effort, hr, ef: effort / hr };
   };
   const a = ef(steady.filter((s) => s.elapsed < mid));
   const b = ef(steady.filter((s) => s.elapsed >= mid));
   return {
     pct: round((100 * (a.ef - b.ef)) / a.ef, 1),
-    first: { kmh: round(a.kmh, 2), hr: round(a.hr) },
-    second: { kmh: round(b.kmh, 2), hr: round(b.hr) },
+    first: { [key]: round(a.effort, decimals), hr: round(a.hr) },
+    second: { [key]: round(b.effort, decimals), hr: round(b.hr) },
     minutes: round((steady.at(-1).elapsed - steady[0].elapsed) / 60),
   };
 }
@@ -128,20 +142,25 @@ export function alphaOfSteady(steady) {
 }
 
 /**
- * Everything for one run, or null when it is not a steady aerobic run with
- * a long enough steady part.
+ * Everything for one run or ride, or null when it is not a steady aerobic
+ * session with a long enough steady part.
  */
-export function aerobicSummary(samples, steps = []) {
+export function aerobicSummary(samples, steps = [], sport = 'run') {
   if (!isAerobicRun(steps)) return null;
-  const steady = steadyPart(samples, steps);
-  const dec = decoupling(steady);
+  const steady = steadyPart(samples, steps, sport);
+  const dec = decoupling(steady, sport);
   if (!dec) return null;
   const totalKm = samples.at(-1)?.distance ? round(samples.at(-1).distance / 1000, 2) : null;
-  return { decoupling: dec, vt1: vt1FromRun(samples), alpha: alphaOfSteady(steady), km: totalKm, minutes: round((samples.at(-1)?.elapsed ?? 0) / 60) };
+  return { sport, decoupling: dec, vt1: vt1FromRun(samples), alpha: alphaOfSteady(steady), km: totalKm, minutes: round((samples.at(-1)?.elapsed ?? 0) / 60) };
 }
 
-/** Median HR at VT1 of the last `n` runs that have one (newest first), or null. */
-export function vt1Trend(runs, n = 5) {
-  const hrs = runs.filter((r) => r.vt1).slice(0, n).map((r) => r.vt1.hr);
+/**
+ * Median HR at VT1 of the last `n` sessions of a sport that have one (newest
+ * first), or null. Each sport has its own: HR at VT1 is lower on a bike
+ * (2026-11-01: α1 under 0.75 from ≈ 120 bpm riding, ≈ 126 running).
+ * History entries from before rides carry no sport: they are runs.
+ */
+export function vt1Trend(runs, n = 5, sport = 'run') {
+  const hrs = runs.filter((r) => r.vt1 && (r.sport ?? 'run') === sport).slice(0, n).map((r) => r.vt1.hr);
   return hrs.length >= 2 ? { hr: Math.round(median(hrs)), runs: hrs.length } : null;
 }

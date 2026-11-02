@@ -40,22 +40,26 @@
 
   <section class="card hidden" id="pTestsCard">
     <h2><span data-i18n="profile.testsTitle">Threshold tests (</span><span class="as-written">α1</span>)</h2>
-    <table class="ztable num">
-      <thead><tr><th data-i18n="profile.date">Date</th><th data-i18n="profile.vt1Aerobic">VT1 (aerobic)</th><th data-i18n="profile.vt2Lthr">VT2 (≈ LTHR)</th><th data-i18n="profile.r2">r²</th></tr></thead>
-      <tbody id="pTests"></tbody>
-    </table>
+    <div class="table-scroll">
+      <table class="ztable num">
+        <thead><tr><th data-i18n="profile.date">Date</th><th data-i18n="profile.vt1Aerobic">VT1 (aerobic)</th><th data-i18n="profile.vt2Lthr">VT2 (≈ LTHR)</th><th data-i18n="profile.r2">r²</th></tr></thead>
+        <tbody id="pTests"></tbody>
+      </table>
+    </div>
     <div class="note mt-8" data-i18n="profile.testsHelp">Pace is the flat equivalent of speed and incline. * extrapolated: α1 did not quite reach 0.5. With Intervals.icu, also update its running settings, or Refresh will bring its values back.</div>
     <div class="row mt-12"><button id="pTestApply">Use VT2 as LTHR and threshold pace</button></div>
   </section>
 
-  <!-- Steady aerobic runs (#4): Pa:HR decoupling and VT1 from α1, saved at the end of each run -->
+  <!-- Steady aerobic runs and rides (#4): Pa:HR / Pw:HR decoupling and VT1 from α1, saved at the end of each session -->
   <section class="card hidden" id="pRunsCard">
-    <h2 data-i18n="profile.runsTitle">Aerobic runs</h2>
+    <h2 data-i18n="profile.runsTitle">Aerobic sessions</h2>
     <div class="lead" id="pRunsTrend"></div>
-    <table class="ztable num">
-      <thead><tr><th data-i18n="profile.date">Date</th><th data-i18n="profile.workout">Workout</th><th data-i18n="profile.steadyMin">Steady</th><th>Pa:HR</th><th data-i18n="profile.vt1Run">VT1 (α1)</th></tr></thead>
-      <tbody id="pRuns"></tbody>
-    </table>
-    <div class="note mt-8" data-i18n="profile.runsHelp">Steady Z1–Z2 runs with 20 min or more past the warm-up and its first 5 min. Pa:HR: how much efficiency (flat-equivalent speed ÷ HR) falls from the first half to the second; under 5 % the aerobic base held for that pace, over 10 % the pace was too much that day. VT1 is estimated from α1 (chest strap) and varies from day to day: watch the trend.</div>
+    <div class="table-scroll">
+      <table class="ztable num">
+        <thead><tr><th data-i18n="profile.date">Date</th><th data-i18n="profile.workout">Workout</th><th data-i18n="profile.steadyMin">Steady</th><th data-i18n="profile.decoupling">Decoupling</th><th data-i18n="profile.vt1Run">VT1 (α1)</th></tr></thead>
+        <tbody id="pRuns"></tbody>
+      </table>
+    </div>
+    <div class="note mt-8" data-i18n="profile.runsHelp">Steady Z1–Z2 runs and rides with 20 min or more past the warm-up and its first 5 min. Decoupling: how much efficiency falls from the first half to the second, flat-equivalent speed ÷ HR on a run (Pa:HR), watts ÷ HR on a ride (Pw:HR); under 5 % the aerobic base held for that effort, over 10 % it was too much that day. VT1 is estimated from α1 (chest strap), is lower on the bike than running and varies from day to day: watch each trend.</div>
   </section>
 </div>

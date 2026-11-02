@@ -283,7 +283,7 @@ export function finish(message) {
   if (session.testStart != null) {
     session.testEnd ??= session.totalElapsed;
     saveTestResult();
-  } else if (policy().kind === 'treadmill') {
+  } else {
     saveRunMetrics();
   }
   changed();
@@ -446,16 +446,20 @@ function saveTestResult() {
 }
 
 /**
- * Steady aerobic runs (#4): Pa:HR decoupling and HR at VT1 from α1, saved
- * to the run history and told in the note. Nothing for other sessions.
+ * Steady aerobic runs and rides (#4): Pa:HR (Pw:HR) decoupling and HR at
+ * VT1 from α1, saved to the history and told in the note. Nothing for other
+ * sessions.
  */
 function saveRunMetrics() {
-  const summary = aerobicSummary(session.samples, session.steps);
+  const sport = policy().sport;
+  const summary = aerobicSummary(session.samples, session.steps, sport);
   if (!summary) return;
   addRun({ name: session.event?.name ?? null, ...summary });
   const text = runText(summary);
-  log('info', `Aerobic run: ${text} (Pa:HR ${summary.decoupling.first.kmh} km/h at ${summary.decoupling.first.hr} → ${summary.decoupling.second.kmh} at ${summary.decoupling.second.hr}${summary.vt1 ? `; VT1 r² ${summary.vt1.r2}, ${summary.vt1.bands} HR bands` : ''})`);
-  note(` ${t('aerobic.result', { result: text })}`, true);
+  const { first, second } = summary.decoupling;
+  const halves = sport === 'ride' ? `${first.w} W at ${first.hr} → ${second.w} at ${second.hr}` : `${first.kmh} km/h at ${first.hr} → ${second.kmh} at ${second.hr}`;
+  log('info', `Aerobic ${sport}: ${text} (${halves}${summary.vt1 ? `; VT1 r² ${summary.vt1.r2}, ${summary.vt1.bands} HR bands` : ''})`);
+  note(` ${t(sport === 'ride' ? 'aerobic.resultRide' : 'aerobic.result', { result: text })}`, true);
   events.emit('run', { summary });
 }
 
