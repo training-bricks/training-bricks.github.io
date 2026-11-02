@@ -1,11 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Brickwise: a wall of bricks (a "brick" workout: one sport after another) on the accent blue -->
+  <!-- Brickwise: a "B" built of bricks (a "brick" workout: one sport after another) on the accent blue -->
   <rect width="512" height="512" rx="112" fill="#1f6feb"/>
   <g fill="#fff">
-    <rect x="116" y="166" width="132" height="76" rx="12"/>
-    <rect x="264" y="166" width="132" height="76" rx="12"/>
-    <rect x="116" y="270" width="58" height="76" rx="12"/>
-    <rect x="190" y="270" width="132" height="76" rx="12"/>
-    <rect x="338" y="270" width="58" height="76" rx="12"/>
+    <rect x="118" y="112" width="84" height="132" rx="14"/>
+    <rect x="118" y="260" width="84" height="140" rx="14"/>
+    <path d="M232 112H342A24 24 0 0 1 366 136V212A24 24 0 0 1 342 236H232A14 14 0 0 1 218 222V126A14 14 0 0 1 232 112z"/>
+    <path d="M232 252H366A28 28 0 0 1 394 280V372A28 28 0 0 1 366 400H232A14 14 0 0 1 218 386V266A14 14 0 0 1 232 252z"/>
   </g>
 </svg>
