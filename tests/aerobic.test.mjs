@@ -125,3 +125,64 @@ test('flow (#4): a steady aerobic run saves its metrics at the end; intervals do
     delete globalThis.localStorage;
   }
 });
+
+// Rides (#4 on a trainer): Pw:HR, watts ÷ HR, and a VT1 trend of their own
+
+/** A synthetic 40 min ride: 10 min warm-up, 30 min at `watts` with HR drifting `drift` bpm a minute, a coasting stop. */
+function ride({ watts = 140, drift = 0.3, stopAt = null } = {}) {
+  return Array.from({ length: 2400 }, (_, t) => {
+    const step = t < 600 ? 1 : 2;
+    const coasting = stopAt != null && t >= stopAt && t < stopAt + 30;
+    const hr = Math.round(step === 1 ? 95 + t / 30 : 115 + (drift * (t - 600)) / 60);
+    return { elapsed: t, speed: 30, power: coasting ? 0 : step === 1 ? 100 : watts, cadence: coasting ? 0 : 88, hr, alpha1: null, step };
+  });
+}
+const RIDE_STEPS = [{ warmup: true, zone: 1 }, { zone: 2 }];
+
+test('aerobic (rides): Pw:HR from watts, not the virtual speed; coasting is left out', () => {
+  const s = aerobicSummary(ride(), RIDE_STEPS, 'ride');
+  assert.equal(s.sport, 'ride');
+  assert.deepEqual([s.decoupling.first.w, s.decoupling.second.w], [140, 140]);
+  assert.ok(s.decoupling.pct > 2 && s.decoupling.pct < 6, `${s.decoupling.pct}`); // 0.3 bpm/min at the same watts
+  // 30 s without pedaling in the steady part do not count as a part of it
+  const stopped = steadyPart(ride({ stopAt: 1500 }), RIDE_STEPS, 'ride');
+  assert.ok(stopped.every((x) => x.power > 0 && x.cadence >= 20));
+});
+
+test('aerobic (rides): VT1 trend per sport; entries without a sport are runs', () => {
+  const runs = [
+    { sport: 'ride', vt1: { hr: 118 } }, { sport: 'ride', vt1: { hr: 122 } },
+    { vt1: { hr: 126 } }, { sport: 'run', vt1: { hr: 128 } },
+  ];
+  assert.deepEqual(vt1Trend(runs), { hr: 127, runs: 2 });
+  assert.deepEqual(vt1Trend(runs, 5, 'ride'), { hr: 120, runs: 2 });
+});
+
+test('run history (rides): Pw:HR and the power wording', () => {
+  assert.equal(runText({ sport: 'ride', decoupling: { pct: 12 }, vt1: null, alpha: null }), 'Pw:HR 12.0 % (power too much today) · no α1 (needs a chest strap)');
+  assert.match(runText({ decoupling: { pct: 3 }, vt1: { hr: 126 } }), /^Pa:HR 3\.0 %/);
+});
+
+test('flow (#4 rides): a steady Z2 ride saves Pw:HR at the end, with its sport', async () => {
+  const { startSession } = await import('./session/harness.mjs');
+  const m = new Map();
+  globalThis.localStorage = { getItem: (k) => m.get(k) ?? null, setItem: (k, v) => m.set(k, String(v)), removeItem: (k) => m.delete(k) };
+  try {
+    const step = (o) => ({ label: 'Step', hasTarget: false, speedStart: null, speedEnd: null, incline: 0, hr: null, ...o });
+    const h = startSession({ sport: 'ride', steps: [
+      step({ warmup: true, zone: 1, duration: 600, power: { lo: 100, hi: 100 } }),
+      step({ zone: 2, duration: 1800, power: { lo: 140, hi: 140 } }),
+    ] });
+    const notes = [];
+    h.runner.events.on('note', ({ text }) => notes.push(text));
+    h.run(2410, { hr: (t) => Math.round(t < 600 ? 100 + t / 40 : 115 + (t - 600) / 60) });
+    assert.equal(h.session.state, 'done');
+    const [saved] = loadRuns();
+    assert.equal(saved.sport, 'ride');
+    assert.equal(saved.decoupling.first.w, 140);
+    assert.ok(saved.decoupling.pct > 5, `${saved.decoupling.pct}`);
+    assert.match(notes.join(' '), /Aerobic ride: Pw:HR/);
+  } finally {
+    delete globalThis.localStorage;
+  }
+});
