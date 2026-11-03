@@ -169,18 +169,39 @@ export function hrZoneOf(zones, bpm) {
 }
 
 /**
+ * A running step written with a power target: Intervals.icu uses the
+ * athlete's default target when a step only says "z2", and that can be power
+ * ("caco 9+1", 2026-10-31: every step in power zones, so the treadmill had no
+ * speed, #31). The pace in the same position takes its place: power Z2 → pace
+ * Z2, % of FTP → the same % of threshold pace. Absolute watts have no pace:
+ * the step is left free. Steps that also carry a pace or HR keep those.
+ */
+export function runStepFromPower(step) {
+  const p = step.power;
+  if (!p) return step;
+  const { power, _power, ...rest } = step;
+  if (step.pace || step.hr) return rest;
+  const units = { power_zone: 'pace_zone', '%ftp': '%pace' }[p.units];
+  return units ? { ...rest, pace: { ...p, units } } : rest;
+}
+
+/**
  * Recomputes `_pace` (m/s) of steps with a relative pace (% of threshold or a
  * zone) from the profile. Absolute paces are kept. Used for library workouts
  * (which come unresolved) and so Intervals workouts use the profile's
- * threshold if it was edited by hand.
+ * threshold if it was edited by hand. On a run (`sport` 'run'), power
+ * targets become paces first (runStepFromPower).
  */
-export function resolveDoc(doc, zones) {
-  if (!doc || !zones?.thresholdKmh) return doc;
-  const t = zones.thresholdKmh / MS_TO_KMH; // m/s
-  const walk = (steps) => steps.map((step) => {
-    if (step.steps) return { ...step, steps: walk(step.steps) };
+export function resolveDoc(doc, zones, sport = null) {
+  if (!doc) return doc;
+  const run = sport === 'run';
+  if (!zones?.thresholdKmh && !run) return doc;
+  const t = zones?.thresholdKmh ? zones.thresholdKmh / MS_TO_KMH : null; // m/s
+  const walk = (steps) => steps.map((original) => {
+    if (original.steps) return { ...original, steps: walk(original.steps) };
+    const step = run ? runStepFromPower(original) : original;
     const pace = step.pace;
-    if (!pace) return step;
+    if (!t || !pace) return step;
     const lo = pace.start ?? pace.value;
     const hi = pace.end ?? pace.value;
     if (pace.units === '%pace') {

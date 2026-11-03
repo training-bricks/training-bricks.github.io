@@ -202,6 +202,7 @@ export default {
   'chart.whatColorsMean': 'Qué significa cada color',
   'chart.aria': 'Velocidad, inclinación y FC de la sesión sobre el entrenamiento planificado',
   'chart.noThreshold': 'Falta el ritmo umbral en el Perfil: el fondo solo muestra la forma del entrenamiento',
+  'chart.noPaceTargets': 'Este entrenamiento no tiene ritmos objetivo: el fondo solo muestra su forma',
   'chart.noWorkout': 'Sin entrenamiento: las líneas aparecen cuando la banda empieza a moverse',
   'chart.noWorkoutRide': 'Sin entrenamiento: las líneas aparecen en cuanto empiezas a pedalear',
   'chart.pace': 'ritmo',

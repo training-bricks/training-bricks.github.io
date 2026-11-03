@@ -17,5 +17,5 @@ export function workoutSeconds(doc) {
  */
 export function hrControllable(w, zones) {
   if (w.hrControl != null) return w.hrControl;
-  return followsHr(flattenWorkout(resolveDoc(w.workout_doc, zones), { zones }));
+  return followsHr(flattenWorkout(resolveDoc(w.workout_doc, zones, w.sport), { zones }));
 }

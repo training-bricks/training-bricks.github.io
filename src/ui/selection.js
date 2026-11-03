@@ -38,7 +38,7 @@ export function selectWorkout(key = selectedKey) {
     const hrControl = hrControllable(event, z);
     const { position, defaultIncline, hrAdjust } = app.state.workoutOptions;
     const hrOn = hrControl && hrAdjust;
-    const steps = flattenWorkout(resolveDoc(event.workout_doc, z), { position, defaultIncline, zones: z, hrTargets: hrOn });
+    const steps = flattenWorkout(resolveDoc(event.workout_doc, z, event.sport), { position, defaultIncline, zones: z, hrTargets: hrOn });
     app.setSelection({ key, event, steps, needsProfile, hrControl, hrOn });
   } else {
     app.setSelection(null);

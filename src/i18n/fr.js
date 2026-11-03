@@ -202,6 +202,7 @@ export default {
   'chart.whatColorsMean': 'Ce que signifie chaque couleur',
   'chart.aria': 'Vitesse, inclinaison et FC de la séance sur la séance prévue',
   'chart.noThreshold': 'Il manque l’allure seuil dans le Profil : le fond ne montre que la forme de la séance',
+  'chart.noPaceTargets': 'Cette séance n’a pas d’allures cibles : le fond ne montre que sa forme',
   'chart.noWorkout': 'Sans séance : les courbes apparaissent dès que le tapis bouge',
   'chart.noWorkoutRide': 'Sans séance : les courbes apparaissent dès que vous pédalez',
   'chart.pace': 'allure',
