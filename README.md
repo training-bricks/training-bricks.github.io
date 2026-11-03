@@ -16,11 +16,13 @@ Runs your Intervals.icu workouts on a treadmill or a smart trainer over Bluetoot
 - **HR control:** speed (or incline) on the treadmill and watts in ERG follow HR, with projection, proportional corrections and a **DFA α1 guard** that holds you under the aerobic threshold. See [HR control and DFA α1](https://github.com/ycaceres/brickwise/wiki/HR-control-and-DFA-alpha1).
 - **Physiology:**
   - live DFA α1;
-  - an α1 threshold test (VT1 / VT2);
+  - an α1 threshold test (VT1 / VT2), on the treadmill and on the bike;
+  - a warning when the HR zones disagree with VT1;
   - Pa:HR / Pw:HR decoupling and VT1 after steady aerobic sessions.
   
   See [Threshold test and aerobic metrics](https://github.com/ycaceres/brickwise/wiki/Threshold-test-and-aerobic-metrics).
-- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu.
+- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu with a session summary, RPE and Feel.
+- **During a session:** workout intensity (70–120 %), voice cues, automatic reconnection after a Bluetooth drop, and recovery after a reload or a closed tab.
 - **App:** an installable PWA that works offline, in English, Spanish and French, with light and dark palettes.
 
 ## Getting started
