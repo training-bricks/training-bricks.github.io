@@ -388,6 +388,36 @@
       ]
     },
     {
+      "id": "alpha-test-ride",
+      "sport": "ride",
+      "name": "Threshold test on the bike (α1)",
+      "description": "Finds your VT1 and VT2 on the bike, in watts and bpm, with DFA α1; needs a chest strap that sends RR. After the warm-up the watts rise 5 % of FTP per minute from 50 % (about 10 W per minute with an FTP of 200 W). It ends by itself just past VT2 (α1 below 0.45), near your max HR, or when you stop. Results in Profile.",
+      "type": "test",
+      "minutes": 30,
+      "level": 3,
+      "steps": [
+        { "dur": "10m", "power": [40, 50], "ramp": true, "warmup": true },
+        { "dur": "1m", "power": 50, "lock": true, "test": true },
+        { "dur": "1m", "power": 55, "lock": true, "test": true },
+        { "dur": "1m", "power": 60, "lock": true, "test": true },
+        { "dur": "1m", "power": 65, "lock": true, "test": true },
+        { "dur": "1m", "power": 70, "lock": true, "test": true },
+        { "dur": "1m", "power": 75, "lock": true, "test": true },
+        { "dur": "1m", "power": 80, "lock": true, "test": true },
+        { "dur": "1m", "power": 85, "lock": true, "test": true },
+        { "dur": "1m", "power": 90, "lock": true, "test": true },
+        { "dur": "1m", "power": 95, "lock": true, "test": true },
+        { "dur": "1m", "power": 100, "lock": true, "test": true },
+        { "dur": "1m", "power": 105, "lock": true, "test": true },
+        { "dur": "1m", "power": 110, "lock": true, "test": true },
+        { "dur": "1m", "power": 115, "lock": true, "test": true },
+        { "dur": "1m", "power": 120, "lock": true, "test": true },
+        { "dur": "1m", "power": 125, "lock": true, "test": true },
+        { "dur": "1m", "power": 130, "lock": true, "test": true },
+        { "dur": "5m", "power": [50, 40], "ramp": true, "cooldown": true }
+      ]
+    },
+    {
       "id": "hr-z2",
       "name": "Z2 heart rate run",
       "description": "Speed adjusts itself to keep HR in zone 2 (turn on \"Adjust speed by HR\").",

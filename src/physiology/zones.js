@@ -66,6 +66,15 @@ export function rideFromIntervals(s) {
 }
 
 /**
+ * The cycling settings with a bike test's VT2 (#40): its watts as the indoor
+ * FTP (the one Brickwise rides by) and its HR as LTHR. The HR zones stay as
+ * they are in bpm. From null, settings with only those two.
+ */
+export function rideWithVt2(ride, vt2) {
+  return ride ? { ...ride, indoorFtp: vt2.w, lthr: vt2.hr } : { ...rideFromIntervals({ lthr: vt2.hr }), indoorFtp: vt2.w };
+}
+
+/**
  * Cycling zones in watts and bpm. Power uses the indoor FTP when there is one
  * (Brickwise rides on a trainer).
  * @returns {{ftp, lthr, maxHr, power: Array<{z,name,lo,hi}>, hr: Array<{z,name,lo,hi}>} | null}

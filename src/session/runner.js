@@ -461,7 +461,7 @@ export function tick(now = Date.now()) {
         applyStep(cd < 0 ? session.steps.length : cd);
       } else if (stepProgress(step) >= 1) applyStep(session.stepIdx + 1);
       else if (warmupDone(step)) {
-        log('info', `HR ${live.hr} reached the top of Z1 (${app.state.zones.hr[0].hi}): warm-up done`);
+        log('info', `HR ${live.hr} reached the top of Z1 (${zones().hr[0].hi}): warm-up done`);
         applyStep(session.stepIdx + 1);
       } else {
         if (pol.hrSteerable) adjustForHr(step);
@@ -502,7 +502,8 @@ function testOver(step) {
       log('info', `α1 ${a.toFixed(2)} with HR ${live.hr}: around ${name}`);
     }
   }
-  if (app.state.zones?.maxHr && live.hr >= app.state.zones.maxHr - 2) return `HR ${live.hr} near max HR ${app.state.zones.maxHr}`;
+  const maxHr = zones()?.maxHr;
+  if (maxHr && live.hr >= maxHr - 2) return `HR ${live.hr} near max HR ${maxHr}`;
   if (a == null || a >= TEST_STOP_ALPHA || session.totalElapsed - session.testStart < TEST_MIN_S) {
     session.testLowSince = null;
     return null;
@@ -513,7 +514,7 @@ function testOver(step) {
 
 /** Analyzes the threshold test that just ended and keeps it in the history (Profile). */
 function saveTestResult() {
-  const result = analyzeRamp(session.samples, session.testStart, session.testEnd);
+  const result = analyzeRamp(session.samples, session.testStart, session.testEnd, policy().sport);
   const peakHr = Math.max(0, ...session.samples.map((s) => s.hr || 0));
   if (result.error) {
     session.testError = result.error;
