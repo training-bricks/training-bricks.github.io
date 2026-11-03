@@ -207,6 +207,10 @@ tr.done td { color: var(--muted); }
 .log .error { color: #ff7b72; }
 .log .data { color: #7ee787; }
 .note { font-size: 13px; color: var(--muted); }
+.zone-checks { display: grid; gap: 12px; margin-bottom: var(--gap, 16px); }
+.zone-checks:empty { display: none; }
+.zone-check p { margin: 0; }
+.zone-check .row { align-items: center; }
 .banner { border-left: 4px solid var(--warn); padding: 10px 12px; background: var(--surface); border-radius: 8px; font-size: 14px; }
 .hidden { display: none !important; }
 

@@ -23,6 +23,7 @@ export const SETTINGS = {
   lang:         { type: 'text', fallback: 'system' },   // interface language ('system': the browser's)
   lastDevice:   { type: 'json', fallback: {} },         // last device connected per kind: { treadmill: { driver, name } }
   uploadSummary: { type: 'json', fallback: true },      // session summary in the activity description (#35)
+  zoneCheck:    { type: 'json', fallback: {} },         // zone warnings dismissed per sport, until the value changes (#41)
   voice:        { type: 'json', fallback: { on: false, volume: 1, cues: {} } }, // voice cues (#38); a cue not listed is on
   intervalsKey: { type: 'text', secret: true },         // Intervals.icu API key
   loadRetry:    { type: 'text', store: 'session' },     // app file download retries (index.html)
