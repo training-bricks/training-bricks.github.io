@@ -31,6 +31,7 @@ import { t } from '../i18n/index.js';
  * - 'active' true | false: a session started, or ended / was cancelled (wake lock)
  * - 'test' { result }: a threshold test was analyzed and saved
  * - 'run' { summary }: a steady aerobic run's metrics were saved (#4)
+ * - 'uploaded': the session is on Intervals.icu (session-screen.js says so)
  */
 export const events = createEmitter();
 const log = (kind, text) => events.emit('log', { kind, text });
@@ -295,6 +296,28 @@ export function start({ sport = 'run' } = {}) {
   session.policy = policyFor(session.event, sport);
   session.stats.unit = actuator().unit;
   session.state = 'armed';
+  events.emit('active', true);
+  changed();
+}
+
+/**
+ * Brings back a session saved before a reload (session/recovery.js, #36). One
+ * unfinished comes back paused at its step and time, with its samples: moving
+ * again resumes it and sends the target; the time away counts as a pause. One
+ * finished comes back as it was, without saving its metrics again.
+ */
+export function restoreSession({ session: saved, sport, savedAt }) {
+  slowdown = null;
+  resetSession();
+  Object.assign(session, saved, { policy: POLICIES[sport] ?? POLICIES.run, target: null, targetPower: null, stopSince: null, reason: null });
+  rrState.pending = [];
+  tick.wasMoving = false;
+  if (session.state === 'done') {
+    changed();
+    return;
+  }
+  if (session.state === 'running') startPause(savedAt);
+  session.state = 'paused';
   events.emit('active', true);
   changed();
 }

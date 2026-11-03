@@ -168,6 +168,9 @@ async function connect(kind, driverId = null) {
   }
 }
 
+/** Connects the real device of a kind, from a click (a recovered session, #36). */
+export const connectDevice = (kind) => connect(kind);
+
 let hrName = null;
 const hrStrap = getDriver('hr-strap').create({
   onHr: (bpm) => { live.hr = bpm; live.hrSource = 'strap'; },

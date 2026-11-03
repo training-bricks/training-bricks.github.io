@@ -17,7 +17,7 @@ import * as settings from '../lib/settings.js';
 import { uploadDescription } from '../session/summary.js';
 import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
 import { live, rrState, rrActive } from '../session/live.js';
-import { session, applyStep, start, endSession, cancel, setIntensity } from '../session/runner.js';
+import { session, events as sessionEvents, applyStep, start, endSession, cancel, setIntensity } from '../session/runner.js';
 import { intensityFactor, INTENSITY_MIN, INTENSITY_MAX } from '../session/policies.js';
 import { log } from './debug.js';
 import * as app from '../state.js';
@@ -71,11 +71,11 @@ export const selectedSport = () => (app.state.selection ? (app.state.selection.e
 /** Whether the session (running or finished) belongs to this page's sport. */
 export const ownSession = (sport) => session.state !== 'idle' && session.policy?.sport === sport;
 
-/** The note about this page's device or the strap after a drop (#37), or ''. */
+/** The note when this page's device is gone during its session (#36, #37), or ''. */
 export function linkNote(kind) {
-  const state = live.link[kind] ?? live.link.hr;
-  if (!ownSession(kind === 'trainer' ? 'ride' : 'run') || !state) return '';
-  return t(state === 'gave-up' ? 'session.linkLost' : 'session.reconnecting');
+  if (!ownSession(kind === 'trainer' ? 'ride' : 'run') || !['running', 'paused'].includes(session.state)) return '';
+  if (live.link[kind] === 'reconnecting') return t('session.reconnecting');
+  return app.state.devices[kind]?.connected ? '' : t('session.linkLost');
 }
 
 /** The chart of a page: the plan (or the session's) with its samples. */
@@ -233,6 +233,7 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
       const id = data.id || data.activities?.[0]?.id;
       session.uploaded = true;
       session.activityId = id ?? null;
+      sessionEvents.emit('uploaded');
       note.textContent = `${t('run.uploaded')} `;
       if (id) {
         const a = Object.assign(document.createElement('a'), {

@@ -44,6 +44,15 @@
     <div popover id="menuTrainer" class="menu"></div>
   </header>
 
+  <!-- A session left unfinished by a reload (src/ui/recovery.js); its text comes from the code -->
+  <section class="card hidden" id="recoverCard">
+    <p id="recoverText" class="mb-12"></p>
+    <div class="row">
+      <button class="primary" id="recoverContinue"></button>
+      <button id="recoverEnd"></button>
+    </div>
+  </section>
+
   <!-- The pages (pages/*.html) go here, loaded by src/lib/pages.js -->
   <footer class="note footer" data-i18n="footer.disclaimer">Brickwise is an independent project, not affiliated with or endorsed by any equipment manufacturer. All trademarks belong to their respective owners.</footer>
 </main>

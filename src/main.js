@@ -20,6 +20,7 @@ import { initRide } from './ui/ride.js';
 import { initTabs, showTab } from './ui/tabs.js';
 import { initConfig } from './ui/config.js';
 import { initVoice } from './ui/voice.js';
+import { initRecovery } from './ui/recovery.js';
 import { initProfile, setProfile, loadProfileFromIntervals, renderProfile, refreshAthlete, refreshWellness } from './ui/profile.js';
 import * as app from './state.js';
 
@@ -60,6 +61,7 @@ try {
   if (intervals.getApiKey()) refreshWellness().catch((err) => log('warn', `Intervals.icu wellness: ${err.message}`));
   showTab(tab || 'home');
   every(TICK_MS, tick);
+  initRecovery().catch((err) => log('warn', `Session recovery: ${err.message}`));
   updateControls();
   loadWorkouts();
   settings.remove('loadRetry');
