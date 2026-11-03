@@ -27,13 +27,21 @@ const template = (menuId) => `
       <button data-el="tcx" data-i18n="run.tcx">TCX (for Strava, Garmin…)</button>
     </div>
   </div>
+  <div class="intensity hidden" data-el="intensityBox">
+    <span data-i18n="session.intensity">Workout intensity</span>
+    <span class="pm">
+      <button class="icon" data-el="intensityDown" aria-label="Lower intensity" title="Lower intensity" data-i18n-label="session.intensityDown">−</button>
+      <b class="num" data-el="intensity">100 %</b>
+      <button class="icon" data-el="intensityUp" aria-label="Raise intensity" title="Raise intensity" data-i18n-label="session.intensityUp">+</button>
+    </span>
+  </div>
   <div class="session-feedback hidden" data-el="feedback">
     <label class="field"><span data-i18n="feedback.rpe">How hard (RPE)</span><select data-el="rpe"></select></label>
     <label class="field"><span data-i18n="feedback.feel">How you felt</span><select data-el="feel"></select></label>
   </div>`;
 
 class BwSessionBar extends HTMLElement {
-  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, fit, tcx, feedback, rpe, feel. */
+  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, fit, tcx, intensityBox, intensity, intensityDown, intensityUp, feedback, rpe, feel. */
   el = {};
 
   connectedCallback() {

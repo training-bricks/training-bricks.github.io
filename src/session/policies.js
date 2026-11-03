@@ -45,3 +45,13 @@ export function powerAt(step, progress) {
   if (step.ramp) return Math.round(p.lo + (p.hi - p.lo) * Math.min(1, Math.max(0, progress)));
   return Math.round((p.lo + p.hi) / 2);
 }
+
+/** Limits of the workout intensity (%, #39). */
+export const INTENSITY_MIN = 70;
+export const INTENSITY_MAX = 120;
+
+/** What a workout intensity multiplies a step by: a cool-down never goes above the plan. */
+export function intensityFactor(step, pct = 100) {
+  const f = pct / 100;
+  return step?.cooldown ? Math.min(1, f) : f;
+}

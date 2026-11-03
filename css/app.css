@@ -173,6 +173,9 @@ button .ico { stroke: currentColor; }
 .dash-ctl { display: grid; gap: 4px; grid-template-rows: auto auto 1fr; min-width: 0; }
 .dash-ctl .pm { align-self: end; margin-top: 8px; }
 .dash-btns, .pm { display: flex; flex-wrap: wrap; gap: 8px; }
+.intensity { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 12px; font-size: 13px; color: var(--muted); }
+.intensity .pm { align-items: center; }
+.intensity b { color: var(--text, inherit); min-width: 3.5em; text-align: center; font-size: 15px; }
 .session-feedback { display: flex; flex-wrap: wrap; gap: 8px 12px; }
 .session-feedback select { max-width: 100%; }
 .dash-note { grid-column: 1 / -1; padding: var(--pad); border-top: 1px solid var(--border); }

@@ -15,7 +15,8 @@ import { samplesToCsv } from '../export/csv.js';
 import * as intervals from '../services/intervals.js';
 import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
 import { live, rrState, rrActive } from '../session/live.js';
-import { session, applyStep, start, endSession, cancel } from '../session/runner.js';
+import { session, applyStep, start, endSession, cancel, setIntensity } from '../session/runner.js';
+import { intensityFactor, INTENSITY_MIN, INTENSITY_MAX } from '../session/policies.js';
 import { log } from './debug.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
@@ -48,9 +49,14 @@ export function planTimeline(planOnly = false) {
         t1 = Math.max(session.totalElapsed, t0 + plannedSeconds(step));
       }
     }
+    // At the workout intensity (#39): steps done keep the one they ended with
+    const pct = active ? (i < session.stepIdx ? session.stepIntensity[i] : null) ?? session.intensity : 100;
+    const f = intensityFactor(step, pct);
+    const by = (v) => (v == null ? v : v * f);
     out.push({
-      t0, t1, speedStart: step.speedStart, speedEnd: step.speedEnd, power: step.power, ramp: step.ramp, incline: step.incline,
-      zone: step.zone, hr: step.hr, intensity: step.intensity,
+      t0, t1, speedStart: by(step.speedStart), speedEnd: by(step.speedEnd), ramp: step.ramp, incline: step.incline,
+      power: step.power && { lo: step.power.lo * f, hi: step.power.hi * f },
+      zone: step.zone, hr: step.hr, intensity: step.intensity?.map(by) ?? step.intensity,
     });
     t = t1;
   });
@@ -121,6 +127,11 @@ export function updateSessionButtons(el, sport, { canStart, finishLabel }) {
   el.upload.disabled = !(finished && session.samples.length > 10 && intervals.getApiKey() && !session.uploaded);
   el.upload.title = intervals.getApiKey() ? t('run.uploadWhenFinished') : t('run.uploadSignIn');
   el.upload.setAttribute('aria-label', t('run.upload'));
+  const scaling = own && active && session.steps.length > 0;
+  el.intensityBox.classList.toggle('hidden', !scaling);
+  el.intensity.textContent = `${session.intensity} %`;
+  el.intensityDown.disabled = session.intensity <= INTENSITY_MIN;
+  el.intensityUp.disabled = session.intensity >= INTENSITY_MAX;
   el.feedback.classList.toggle('hidden', !finished);
   if (finished) {
     el.rpe.value = session.rpe ?? '';
@@ -169,6 +180,9 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     if (session.state === 'armed') { cancel(); return; }
     endSession(t(endNote)); // a treadmill slows down to a walk first; a trainer is released
   };
+
+  el.intensityDown.onclick = () => setIntensity(session.intensity - 1);
+  el.intensityUp.onclick = () => setIntensity(session.intensity + 1);
 
   // RPE and Feel: optional; after the upload an answer goes straight to the activity
   fillFeedback(el);

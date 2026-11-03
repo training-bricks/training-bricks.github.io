@@ -17,7 +17,7 @@ import { live, rrState, rrActive, updateAlpha } from './live.js';
 import { addTest, testText } from './test-history.js';
 import { addRun, runText } from './run-history.js';
 import { aerobicSummary } from '../physiology/aerobic.js';
-import { policyFor, isStale, powerAt, POLICIES } from './policies.js';
+import { policyFor, isStale, powerAt, intensityFactor, INTENSITY_MIN, INTENSITY_MAX, POLICIES } from './policies.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
 
@@ -100,13 +100,15 @@ export const session = {
   event: null,
   lastBeep: null,
   stepStarts: [],     // session time (s) when each step started
+  intensity: 100,     // workout intensity in % (#39): scales this and the next steps
+  stepIntensity: [],  // the intensity each step ended with, for the chart
 };
 
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
     adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrLastAdjust: null, hrLastRise: null, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
-    stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null,
+    stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [],
   });
 }
 
@@ -125,6 +127,7 @@ export function applyStep(i) {
   const before = policy().kind === 'trainer' ? session.targetPower : session.target; // where the previous step ended
   session.stepIdx = i;
   session.stepStarts[i] = session.totalElapsed;
+  session.stepIntensity[i] = session.intensity;
   session.stepElapsed = 0;
   session.stepDist = 0;
   session.adjust = 0;
@@ -158,8 +161,10 @@ export function applyStep(i) {
 function coolDownFrom(step, before) {
   if (!step.cooldown || before == null) return;
   const a = actuator();
-  const base = a === POWER ? powerAt(step, 0) : step.hasTarget ? targetSpeedAt(step, 0) : null;
-  if (base == null || before >= base) return;
+  const planned = a === POWER ? powerAt(step, 0) : step.hasTarget ? targetSpeedAt(step, 0) : null;
+  if (planned == null) return;
+  const base = roundTo(planned * intensityFactor(step, session.intensity), a.decimals);
+  if (before >= base) return;
   session.hrAdjust = Math.max(-a.maxDown, roundTo(before - base, a.decimals));
   session.reason = `cool-down from ${before} ${a.unit}`;
   log('info', `Cool-down starts at ${before} ${a.unit}, not ${base}: the previous step ended there`);
@@ -220,7 +225,7 @@ export function pushPower(force = false) {
   const base = powerAt(step, stepProgress(step));
   if (base == null) return;
   const l = limits();
-  const w = Math.round(Math.min(l.powerMax ?? Infinity, Math.max(l.powerMin ?? 0, base + session.adjust + session.hrAdjust)));
+  const w = Math.round(Math.min(l.powerMax ?? Infinity, Math.max(l.powerMin ?? 0, base * intensityFactor(step, session.intensity) + session.adjust + session.hrAdjust)));
   if (force || w !== session.targetPower) {
     session.targetPower = w;
     device()?.setTarget({ power: w });
@@ -240,11 +245,28 @@ export function pushTarget(force = false) {
   if (!step?.hasTarget) { session.target = null; return; }
   const base = targetSpeedAt(step, stepProgress(step));
   const l = limits();
-  const t = Math.round(Math.min(l.speedMax ?? Infinity, Math.max(l.speedMin ?? 0, base + session.adjust + session.hrAdjust)) * 10) / 10;
+  const t = Math.round(Math.min(l.speedMax ?? Infinity, Math.max(l.speedMin ?? 0, base * intensityFactor(step, session.intensity) + session.adjust + session.hrAdjust)) * 10) / 10;
   if (force || t !== session.target) {
     session.target = t;
     device()?.setTarget({ speed: t });
   }
+}
+
+/**
+ * Workout intensity (#39): scales the watts or the speed (not the incline) of
+ * this step and the next ones, before the manual and HR adjustments.
+ */
+export function setIntensity(pct) {
+  const next = Math.min(INTENSITY_MAX, Math.max(INTENSITY_MIN, Math.round(pct)));
+  if (next === session.intensity) return;
+  session.intensity = next;
+  if (session.stepStarts[session.stepIdx] != null) session.stepIntensity[session.stepIdx] = next;
+  session.reason = `intensity ${next} %`;
+  log('info', `Workout intensity ${next} %`);
+  if (session.state === 'running' && currentStep()) {
+    if (policy().kind === 'trainer') pushPower(); else pushTarget();
+  }
+  changed();
 }
 
 /**
@@ -473,7 +495,7 @@ function sampleControl() {
   const hr = session.hrOn && step?.hr && step.hr.mode !== 'info' ? step.hr : null;
   const reason = session.reason;
   session.reason = null;
-  return { step: step ? session.stepIdx + 1 : null, hrLo: hr?.lo ?? null, hrHi: hr?.hi ?? null, hrAdjust: session.hrAdjust, reason };
+  return { step: step ? session.stepIdx + 1 : null, hrLo: hr?.lo ?? null, hrHi: hr?.hi ?? null, hrAdjust: session.hrAdjust, reason, intensity: session.intensity };
 }
 
 /**
