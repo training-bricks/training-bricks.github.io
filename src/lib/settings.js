@@ -22,6 +22,7 @@ export const SETTINGS = {
   theme:        { type: 'text', fallback: 'system' },   // color palette (also read early by index.html)
   lang:         { type: 'text', fallback: 'system' },   // interface language ('system': the browser's)
   lastDevice:   { type: 'json', fallback: {} },         // last device connected per kind: { treadmill: { driver, name } }
+  uploadSummary: { type: 'json', fallback: true },      // session summary in the activity description (#35)
   intervalsKey: { type: 'text', secret: true },         // Intervals.icu API key
   loadRetry:    { type: 'text', store: 'session' },     // app file download retries (index.html)
 };

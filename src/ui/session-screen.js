@@ -13,6 +13,8 @@ import { buildTcx } from '../export/tcx.js';
 import { buildFit } from '../export/fit.js';
 import { samplesToCsv } from '../export/csv.js';
 import * as intervals from '../services/intervals.js';
+import * as settings from '../lib/settings.js';
+import { uploadDescription } from '../session/summary.js';
 import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
 import { live, rrState, rrActive } from '../session/live.js';
 import { session, applyStep, start, endSession, cancel, setIntensity } from '../session/runner.js';
@@ -219,7 +221,7 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     try {
       const meta = upload();
       const data = await intervals.uploadFit(fitFile(meta), {
-        ...meta, external_id: `brickwise-${session.startedAt}`, paired_event_id: session.event?.id,
+        ...meta, description: uploadDescription(meta.description, session, { summary: settings.get('uploadSummary') }), external_id: `brickwise-${session.startedAt}`, paired_event_id: session.event?.id,
       });
       const id = data.id || data.activities?.[0]?.id;
       session.uploaded = true;

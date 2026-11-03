@@ -37,6 +37,9 @@ const note = (text, append = false) => events.emit('note', { text, append });
 const beep = (freq, seconds) => events.emit('beep', { freq, seconds });
 const changed = () => events.emit('change');
 
+/** What the session counts for its summary (#35); unit: what HR moves. */
+const emptyStats = () => ({ unit: 'km/h', hrRises: 0, hrDrops: 0, hrUp: 0, hrDown: 0, inclineMoves: 0, alphaGuards: 0, pauses: 0, pausedMs: 0, pausedSince: null, cooldownFrom: null });
+
 const ACTIVE = ['armed', 'running', 'paused'];
 // The session's sport decides the device it drives (session/policies.js)
 const policy = () => session.policy ?? POLICIES.run;
@@ -102,13 +105,17 @@ export const session = {
   stepStarts: [],     // session time (s) when each step started
   intensity: 100,     // workout intensity in % (#39): scales this and the next steps
   stepIntensity: [],  // the intensity each step ended with, for the chart
+  stats: emptyStats(), // what happened, for the summary (session/summary.js)
+  aerobic: null,      // aerobic metrics saved at the end (#4)
+  testResult: null,   // threshold test result, or testError why it failed
+  testError: null,
 };
 
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
     adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrLastAdjust: null, hrLastRise: null, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
-    stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [],
+    stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
 
@@ -166,6 +173,7 @@ function coolDownFrom(step, before) {
   const base = roundTo(planned * intensityFactor(step, session.intensity), a.decimals);
   if (before >= base) return;
   session.hrAdjust = Math.max(-a.maxDown, roundTo(before - base, a.decimals));
+  session.stats.cooldownFrom = before;
   session.reason = `cool-down from ${before} ${a.unit}`;
   log('info', `Cool-down starts at ${before} ${a.unit}, not ${base}: the previous step ended there`);
 }
@@ -281,6 +289,7 @@ export function start({ sport = 'run' } = {}) {
   session.event = app.state.selection ? app.state.selection.event : null;
   session.hrOn = !!app.state.selection?.hrOn;
   session.policy = policyFor(session.event, sport);
+  session.stats.unit = actuator().unit;
   session.state = 'armed';
   events.emit('active', true);
   changed();
@@ -296,6 +305,7 @@ export function cancel() {
 
 export function finish(message) {
   if (session.state === 'idle' || session.state === 'done') return;
+  endPause(tick.last || Date.now());
   session.state = 'done';
   session.target = null;
   events.emit('active', false);
@@ -310,6 +320,17 @@ export function finish(message) {
   }
   changed();
   beep(520, 0.6);
+}
+
+function startPause(now) {
+  session.stats.pauses += 1;
+  session.stats.pausedSince = now;
+}
+
+function endPause(now) {
+  const c = session.stats;
+  if (c.pausedSince != null) c.pausedMs += now - c.pausedSince;
+  c.pausedSince = null;
 }
 
 export function tick(now = Date.now()) {
@@ -340,6 +361,7 @@ export function tick(now = Date.now()) {
       session.stopSince ??= now;
       if (now - session.stopSince > AUTO_PAUSE_MS) {
         session.state = 'paused';
+        startPause(now);
         log('warn', pol.words.stopped);
         changed();
       }
@@ -349,6 +371,7 @@ export function tick(now = Date.now()) {
   } else if (session.state === 'paused' && moving) {
     session.state = 'running';
     session.stopSince = null;
+    endPause(now);
     rrState.pending = [];
     log('info', pol.words.resumed);
     if (currentStep()) sendStep(true);
@@ -456,10 +479,12 @@ function saveTestResult() {
   const result = analyzeRamp(session.samples, session.testStart, session.testEnd);
   const peakHr = Math.max(0, ...session.samples.map((s) => s.hr || 0));
   if (result.error) {
+    session.testError = result.error;
     log('warn', `Threshold test: ${result.error}`);
     note(` ${t('tests.failed', { error: result.error })}`, true);
     return;
   }
+  session.testResult = result;
   addTest({ ...result, peakHr });
   const text = testText(result);
   log('info', `Threshold test: ${text} (r² ${result.r2}, ${result.points} points)`);
@@ -476,6 +501,7 @@ function saveRunMetrics() {
   const sport = policy().sport;
   const summary = aerobicSummary(session.samples, session.steps, sport);
   if (!summary) return;
+  session.aerobic = summary;
   addRun({ name: session.event?.name ?? null, ...summary });
   const text = runText(summary);
   const { first, second } = summary.decoupling;
@@ -516,6 +542,7 @@ function alphaGuard() {
   const median = recent.sort((x, y) => x - y)[Math.floor(recent.length / 2)];
   if (!session.alphaGuard && median < VT1) {
     session.alphaGuard = true;
+    session.stats.alphaGuards += 1;
     if (session.hrOn) log('info', `α1 ${median.toFixed(2)} (median of ${ALPHA_HOLD_S} s) below ${VT1}: no rises on aerobic steps until it is above ${ALPHA_RELEASE}`);
   } else if (session.alphaGuard && median > ALPHA_RELEASE) {
     session.alphaGuard = false;
@@ -568,6 +595,7 @@ function adjustForHr(step) {
     if (next === session.inclineAdjust) return;
     const applied = next - session.inclineAdjust;
     session.inclineAdjust = next;
+    session.stats.inclineMoves += 1;
     log('info', `${reason}: incline ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(1)} %, now ${(step.incline + next).toFixed(1)} %`);
     pushIncline();
   } else {
@@ -577,6 +605,8 @@ function adjustForHr(step) {
     if (next === session.hrAdjust) return;
     const applied = roundTo(next - session.hrAdjust, a.decimals);
     session.hrAdjust = next;
+    if (applied > 0) { session.stats.hrRises += 1; session.stats.hrUp = roundTo(session.stats.hrUp + applied, a.decimals); }
+    else { session.stats.hrDrops += 1; session.stats.hrDown = roundTo(session.stats.hrDown - applied, a.decimals); }
     const what = a === POWER ? 'power' : 'speed';
     log('info', `${reason}: ${what} ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(a.decimals)} ${a.unit}, HR adjustment ${next > 0 ? '+' : ''}${next.toFixed(a.decimals)}`);
     if (a === POWER) pushPower(); else pushTarget();

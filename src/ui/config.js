@@ -1,6 +1,7 @@
 /**
- * Configuration tab: color palette and language, kept in localStorage
- * (brickwise.theme, brickwise.lang; 'system' follows the browser's language). The palette is also applied by the
+ * Configuration tab: color palette, language and the session summary on
+ * uploads, kept in localStorage (brickwise.theme, brickwise.lang; 'system'
+ * follows the browser's language). The palette is also applied by the
  * inline script in index.html before the page paints, to avoid a flash.
  */
 import { $ } from '../lib/dom.js';
@@ -34,6 +35,8 @@ export function initConfig() {
   lang.value = settings.get('lang');
   if (!lang.value) lang.value = 'system';
   setLanguage(resolve(lang.value)).then(systemLabel);
+  $('cfgSummary').checked = settings.get('uploadSummary');
+  $('cfgSummary').onchange = () => settings.set('uploadSummary', $('cfgSummary').checked);
   theme.onchange = () => settings.set('theme', applyTheme(theme.value));
   lang.onchange = async () => {
     settings.set('lang', lang.value);
