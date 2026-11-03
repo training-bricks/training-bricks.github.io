@@ -7,21 +7,25 @@ const DB = 'brickwise';
 const STORE = 'kv';
 
 let opening = null;
+let database = null;
 function open() {
   opening ??= new Promise((resolve, reject) => {
     const req = indexedDB.open(DB, 1);
     req.onupgradeneeded = () => req.result.createObjectStore(STORE);
-    req.onsuccess = () => resolve(req.result);
+    req.onsuccess = () => { database = req.result; resolve(database); };
     req.onerror = () => reject(req.error);
   });
   return opening;
 }
 
+/** With the database open a write starts at once and commits right away: on pagehide there is no later. */
 async function run(mode, op) {
   try {
-    const db = await open();
+    const db = database ?? await open();
     return await new Promise((resolve, reject) => {
-      const req = op(db.transaction(STORE, mode).objectStore(STORE));
+      const tx = db.transaction(STORE, mode);
+      const req = op(tx.objectStore(STORE));
+      if (mode === 'readwrite') tx.commit?.();
       req.onsuccess = () => resolve(req.result);
       req.onerror = () => reject(req.error);
     });

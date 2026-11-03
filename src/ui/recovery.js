@@ -35,6 +35,8 @@ export async function initRecovery() {
   text();
   document.addEventListener('bw-language', text);
   $('recoverCard').classList.remove('hidden');
+  // Another session started: the saved one is gone, and Continue must not replace the new one
+  sessionEvents.on('change', () => { if (session.state === 'armed') hide(); });
 
   $('recoverContinue').onclick = () => {
     hide();
