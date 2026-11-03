@@ -109,10 +109,10 @@ export async function getSportSettings() {
   return { run: pick(run, RUN_KEYS), ride: pick(find(RIDE_TYPES), RIDE_KEYS) };
 }
 
-/** Uploads a TCX as an activity. `meta`: name, description, external_id, paired_event_id. */
-export async function uploadTcx(tcx, meta) {
+/** Uploads a FIT file (export/fit.js) as an activity. `meta`: name, description, external_id, paired_event_id. */
+export async function uploadFit(fit, meta) {
   const form = new FormData();
-  form.append('file', new Blob([tcx], { type: 'application/vnd.garmin.tcx+xml' }), 'brickwise.tcx');
+  form.append('file', new Blob([fit], { type: 'application/octet-stream' }), 'brickwise.fit');
   return request('/activities', {
     method: 'POST',
     query: { device_name: 'Brickwise', ...meta }, // meta.device_name: the treadmill or trainer used

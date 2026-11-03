@@ -105,6 +105,7 @@ export default {
   'run.downloadHelp': 'Télécharger (une fois terminée)',
   'run.download': 'Télécharger la séance',
   'run.csv': 'CSV (seconde par seconde)',
+  'run.fit': 'FIT (tours et RR, pour Garmin, Strava…)',
   'run.tcx': 'TCX (pour Strava, Garmin…)',
   'run.incline': 'Inclinaison',
   'run.inclineUp': 'Augmenter l’inclinaison de 0.5 %',

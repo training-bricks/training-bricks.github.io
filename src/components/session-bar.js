@@ -1,7 +1,7 @@
 /**
  * <bw-session-bar>: the half of the session dashboard Run and Ride share:
  * distance, time, HR and α1, and the session buttons (▶ start, ⏭ skip step,
- * ■ finish, download CSV/TCX, upload to Intervals.icu). It only draws them;
+ * ■ finish, download CSV/FIT/TCX, upload to Intervals.icu). It only draws them;
  * ui/session-screen.js fills the values and wires the buttons. Its parts
  * are found by name in .el (no ids, so both pages can hold one). The export
  * menu's popover id comes from the element's id ("<id>-export").
@@ -23,12 +23,13 @@ const template = (menuId) => `
     <button class="icon" data-el="upload" aria-label="Upload to Intervals.icu" title="Upload to Intervals.icu (when finished)" disabled><bw-icon name="upload"></bw-icon></button>
     <div popover id="${menuId}" class="menu" data-el="menu">
       <button data-el="csv" data-i18n="run.csv">CSV (second by second)</button>
+      <button data-el="fit" data-i18n="run.fit">FIT (laps and RR, for Garmin, Strava…)</button>
       <button data-el="tcx" data-i18n="run.tcx">TCX (for Strava, Garmin…)</button>
     </div>
   </div>`;
 
 class BwSessionBar extends HTMLElement {
-  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, tcx. */
+  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, fit, tcx. */
   el = {};
 
   connectedCallback() {

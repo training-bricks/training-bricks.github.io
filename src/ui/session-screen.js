@@ -1,8 +1,8 @@
 /**
  * What the Run and Ride pages share around a session: the plan on the
  * session's time line, the common half of the dashboard (<bw-session-bar>:
- * distance, time, HR, α1 and the session buttons), the export menu, CSV and
- * TCX downloads and the upload to Intervals.icu. Each page passes its sport;
+ * distance, time, HR, α1 and the session buttons), the export menu, CSV, FIT
+ * and TCX downloads and the upload to Intervals.icu. Each page passes its sport;
  * the numbers and buttons of a session belong to the page of its sport.
  */
 import { download } from '../lib/dom.js';
@@ -10,6 +10,7 @@ import { formatDuration } from '../workouts/steps.js';
 import { hrZoneOf } from '../physiology/zones.js';
 import { alphaState } from '../physiology/hrv.js';
 import { buildTcx } from '../export/tcx.js';
+import { buildFit } from '../export/fit.js';
 import { samplesToCsv } from '../export/csv.js';
 import * as intervals from '../services/intervals.js';
 import { live, rrState, rrActive } from '../session/live.js';
@@ -151,6 +152,11 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     if (!session.samples.length) return;
     download(`brickwise-${fileStamp()}.csv`, samplesToCsv(session.samples), 'text/csv');
   };
+  const fitFile = (meta) => buildFit(session.samples, { sport, steps: session.steps, name: meta.name, deviceName: meta.device_name });
+  el.fit.onclick = () => {
+    el.menu.hidePopover();
+    download(`brickwise-${fileStamp()}.fit`, fitFile(upload()), 'application/vnd.ant.fit');
+  };
   el.tcx.onclick = () => {
     el.menu.hidePopover();
     const tcx = buildTcx(session.samples, { name: upload().name, sport });
@@ -162,8 +168,7 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     note.textContent = t('run.uploading');
     try {
       const meta = upload();
-      const tcx = buildTcx(session.samples, { name: meta.name, sport });
-      const data = await intervals.uploadTcx(tcx, {
+      const data = await intervals.uploadFit(fitFile(meta), {
         ...meta, external_id: `brickwise-${session.startedAt}`, paired_event_id: session.event?.id,
       });
       const id = data.id || data.activities?.[0]?.id;

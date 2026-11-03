@@ -20,7 +20,7 @@ Runs your Intervals.icu workouts on a treadmill or a smart trainer over Bluetoot
   - Pa:HR / Pw:HR decoupling and VT1 after steady aerobic sessions.
   
   See [Threshold test and aerobic metrics](https://github.com/ycaceres/brickwise/wiki/Threshold-test-and-aerobic-metrics).
-- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, TCX, and upload to Intervals.icu.
+- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu.
 - **App:** an installable PWA that works offline, in English, Spanish and French, with light and dark palettes.
 
 ## Getting started
@@ -52,7 +52,7 @@ npm start            # python3 tools/serve.py 8000; open http://localhost:8000
 2. Optional: the **HRM** pill, for a strap. α1 needs a chest strap with RR intervals.
 3. Pick a workout in **Home** or the **Training library**, and press ▶ on its page (or start a free session).
 4. Press **▶ (start)**. On a treadmill, press START on the console. The session begins when the belt moves or you pedal, and it pauses when you stop.
-5. When done, upload to Intervals.icu or download the CSV / TCX.
+5. When done, upload to Intervals.icu or download the CSV / FIT / TCX.
 
 More in the [User guide](https://github.com/ycaceres/brickwise/wiki/User-guide). Open the page with `?debug=true` for the simulators and the Debug tab ([Troubleshooting](https://github.com/ycaceres/brickwise/wiki/Troubleshooting)).
 
