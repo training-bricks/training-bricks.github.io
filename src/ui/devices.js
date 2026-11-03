@@ -9,7 +9,7 @@ import { $, setPill } from '../lib/dom.js';
 import * as settings from '../lib/settings.js';
 import { getDriver, requestOptions, detect } from '../devices/registry.js';
 import { live, addRr } from '../session/live.js';
-import { deviceBack, needsDevice } from '../session/runner.js';
+import { deviceBack, needsDevice, announceLink } from '../session/runner.js';
 import { createReconnector } from '../devices/reconnect.js';
 import { log, renderInfo } from './debug.js';
 import { updateControls } from './run.js';
@@ -66,6 +66,7 @@ function reconnector(kind, attempt, pill) {
     shouldRetry: () => needsDevice(kind),
     onState: (state, d) => {
       if (state === 'retrying') {
+        if (live.link[kind] !== 'reconnecting') announceLink('reconnecting');
         live.link[kind] = 'reconnecting';
         pill('reconnecting');
         log('warn', `${kind}: reconnecting, attempt ${d.attempt} in ${d.delay} s`);
@@ -76,9 +77,11 @@ function reconnector(kind, attempt, pill) {
       } else if (state === 'back') {
         delete live.link[kind];
         log('info', `${kind}: reconnected`);
+        announceLink('back');
         deviceBack(kind);
       } else if (state === 'gave-up') {
         live.link[kind] = 'gave-up';
+        announceLink('gave-up');
         pill('disconnected');
         log('error', `${kind}: gave up reconnecting; connect it again from its menu`);
       } else {

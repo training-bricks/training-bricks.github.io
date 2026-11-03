@@ -11,6 +11,7 @@ import { live } from '../session/live.js';
 import { session, events as sessionEvents, isActive, currentStep, pushTarget, pauseOnClose } from '../session/runner.js';
 import { wakeError, requestWakeLock, releaseWakeLock, initWakeLock } from '../session/wake-lock.js';
 import { beep } from '../lib/sound.js';
+import { countdownSpoken } from './voice.js';
 import { highlightSteps } from './workout.js';
 import { log, renderConsole } from './debug.js';
 import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons, linkNote } from './session-screen.js';
@@ -118,7 +119,7 @@ export function initRun() {
     if (append) $('sessionNote').textContent += text;
     else $('sessionNote').textContent = text;
   });
-  sessionEvents.on('beep', ({ freq, seconds }) => beep(freq, seconds));
+  sessionEvents.on('beep', ({ freq, seconds, countdown }) => { if (!(countdown && countdownSpoken())) beep(freq, seconds); });
   document.addEventListener('bw-language', () => { updateControls(); render(); updateChart(); });
   sessionEvents.on('active', (on) => (on ? requestWakeLock() : releaseWakeLock()));
   initWakeLock({ onChange: updateControls, log });

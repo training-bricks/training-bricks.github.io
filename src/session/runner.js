@@ -4,7 +4,7 @@
  * analyzes the threshold test when it ends.
  *
  * No DOM and no UI imports: what happens is reported through `events`
- * ('change', 'tick', 'log', 'note', 'beep', 'active', 'test', 'run'), and the
+ * ('change', 'tick', 'log', 'note', 'beep', 'cue', 'active', 'test', 'run'), and the
  * screens subscribe. tick(now) takes the clock as an argument for tests.
  */
 
@@ -26,7 +26,8 @@ import { t } from '../i18n/index.js';
  * - 'change': state or step changed (armed, running, paused, done, cancelled, new step)
  * - 'tick': every tick (live numbers)
  * - 'log' { kind, text }, 'note' { text, append }: log line and session note
- * - 'beep' { freq, seconds }: step changes and the last seconds of a step
+ * - 'beep' { freq, seconds, countdown? }: step changes and the last seconds of a step
+ * - 'cue' { kind, … }: what the voice may say (session/voice-cues.js, #38)
  * - 'active' true | false: a session started, or ended / was cancelled (wake lock)
  * - 'test' { result }: a threshold test was analyzed and saved
  * - 'run' { summary }: a steady aerobic run's metrics were saved (#4)
@@ -34,7 +35,8 @@ import { t } from '../i18n/index.js';
 export const events = createEmitter();
 const log = (kind, text) => events.emit('log', { kind, text });
 const note = (text, append = false) => events.emit('note', { text, append });
-const beep = (freq, seconds) => events.emit('beep', { freq, seconds });
+const beep = (freq, seconds, countdown = false) => events.emit('beep', { freq, seconds, countdown });
+const cue = (c) => events.emit('cue', c);
 const changed = () => events.emit('change');
 
 /** What the session counts for its summary (#35); unit: what HR moves. */
@@ -51,6 +53,7 @@ const device = () => app.state.devices[policy().kind];
 const limits = () => device()?.limits ?? {};
 export const isActive = () => ACTIVE.includes(session.state);
 
+const NEXT_CUE_S = 10;       // the next step is announced this long before it starts
 const AUTO_PAUSE_MS = 2000;  // belt (or pedals) stopped this long → pause
 
 // Ending a run: the belt never goes from running speed to 0 at once (a
@@ -146,6 +149,7 @@ export function applyStep(i) {
   session.hrLastRise = null;
   session.warmupHrSince = null;
   session.lastBeep = null;
+  session.nextCued = false;
   const step = currentStep();
   if (step?.test) session.testStart ??= session.totalElapsed;
   else if (session.testStart != null) session.testEnd ??= session.totalElapsed;
@@ -306,6 +310,7 @@ export function cancel() {
 export function finish(message) {
   if (session.state === 'idle' || session.state === 'done') return;
   endPause(tick.last || Date.now());
+  cue({ kind: 'end' });
   session.state = 'done';
   session.target = null;
   events.emit('active', false);
@@ -362,6 +367,7 @@ export function tick(now = Date.now()) {
       if (now - session.stopSince > AUTO_PAUSE_MS) {
         session.state = 'paused';
         startPause(now);
+        cue({ kind: 'paused' });
         log('warn', pol.words.stopped);
         changed();
       }
@@ -372,6 +378,7 @@ export function tick(now = Date.now()) {
     session.state = 'running';
     session.stopSince = null;
     endPause(now);
+    cue({ kind: 'resumed' });
     rrState.pending = [];
     log('info', pol.words.resumed);
     if (currentStep()) sendStep(true);
@@ -412,9 +419,16 @@ export function tick(now = Date.now()) {
     if (step) {
       if (step.duration) {
         const left = Math.ceil(step.duration - session.stepElapsed);
+        const next = session.steps[session.stepIdx + 1];
+        // Short steps go by too fast for it (and the first seconds of a step are its own)
+        if (next && !session.nextCued && left <= NEXT_CUE_S && step.duration > 2 * NEXT_CUE_S) {
+          session.nextCued = true;
+          cue({ kind: 'next', step: next, factor: intensityFactor(next, session.intensity) });
+        }
         if (left <= 3 && left >= 1 && session.lastBeep !== left) {
           session.lastBeep = left;
-          beep(440, 0.12);
+          beep(440, 0.12, true);
+          cue({ kind: 'countdown', n: left });
         }
       }
       const testEnd = testOver(step);
@@ -543,9 +557,11 @@ function alphaGuard() {
   if (!session.alphaGuard && median < VT1) {
     session.alphaGuard = true;
     session.stats.alphaGuards += 1;
+    if (session.hrOn) cue({ kind: 'alpha', on: true });
     if (session.hrOn) log('info', `α1 ${median.toFixed(2)} (median of ${ALPHA_HOLD_S} s) below ${VT1}: no rises on aerobic steps until it is above ${ALPHA_RELEASE}`);
   } else if (session.alphaGuard && median > ALPHA_RELEASE) {
     session.alphaGuard = false;
+    if (session.hrOn) cue({ kind: 'alpha', on: false });
     if (session.hrOn) log('info', `α1 ${median.toFixed(2)} (median of ${ALPHA_RELEASE_S} s) above ${ALPHA_RELEASE}: α1 guard off`);
   }
   return session.alphaGuard;
@@ -607,6 +623,7 @@ function adjustForHr(step) {
     session.hrAdjust = next;
     if (applied > 0) { session.stats.hrRises += 1; session.stats.hrUp = roundTo(session.stats.hrUp + applied, a.decimals); }
     else { session.stats.hrDrops += 1; session.stats.hrDown = roundTo(session.stats.hrDown - applied, a.decimals); }
+    cue({ kind: 'hr', delta: applied, unit: a.unit });
     const what = a === POWER ? 'power' : 'speed';
     log('info', `${reason}: ${what} ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(a.decimals)} ${a.unit}, HR adjustment ${next > 0 ? '+' : ''}${next.toFixed(a.decimals)}`);
     if (a === POWER) pushPower(); else pushTarget();
@@ -628,6 +645,9 @@ function adjustForHr(step) {
 export function deviceBack(kind) {
   if (isActive() && kind === policy().kind) tick.wasMoving = false;
 }
+
+/** Says that a device was lost, came back or was given up on (#37), for the voice. */
+export const announceLink = (state) => cue({ kind: 'link', state });
 
 /** Whether a session needs this device now: its treadmill or trainer, or the strap. */
 export const needsDevice = (kind) => isActive() && (kind === 'hr' || kind === policy().kind);

@@ -19,6 +19,7 @@ import { initLibrary } from './ui/library.js';
 import { initRide } from './ui/ride.js';
 import { initTabs, showTab } from './ui/tabs.js';
 import { initConfig } from './ui/config.js';
+import { initVoice } from './ui/voice.js';
 import { initProfile, setProfile, loadProfileFromIntervals, renderProfile, refreshAthlete, refreshWellness } from './ui/profile.js';
 import * as app from './state.js';
 
@@ -45,6 +46,7 @@ try {
   initRun();
   initProfile();
   initConfig();
+  initVoice();
   initRide();
   initSelection();
   initWorkoutPage();

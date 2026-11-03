@@ -1,4 +1,4 @@
-<!-- Configuration: color palette and language -->
+<!-- Configuration: color palette, language, voice cues and uploads -->
 <div id="tab-config" class="tab hidden">
   <section class="card">
     <h2 data-i18n="config.appearance">Appearance</h2>
@@ -17,6 +17,25 @@
       </label>
     </div>
     <p class="note" data-i18n="config.themeNote">Chart and training zone colors stay the same in every palette.</p>
+  </section>
+  <section class="card">
+    <h2 data-i18n="config.voice">Voice cues</h2>
+    <label class="row note"><input type="checkbox" id="cfgVoice" class="check"> <span data-i18n="config.voice.on">Speak during the session, in the interface language</span></label>
+    <p class="note hidden" id="cfgVoiceNote" data-i18n="config.voice.none">This browser has no speech.</p>
+    <div class="hidden mt-8" id="cfgVoiceOptions">
+        <label class="row note"><input type="checkbox" id="cfgVoice-next" class="check"> <span data-i18n="config.voice.next">Next step, 10 s before</span></label>
+        <label class="row note"><input type="checkbox" id="cfgVoice-countdown" class="check"> <span data-i18n="config.voice.countdown">Countdown 3-2-1 (instead of its beeps)</span></label>
+        <label class="row note"><input type="checkbox" id="cfgVoice-hr" class="check"> <span data-i18n="config.voice.hr">HR control changes</span></label>
+        <label class="row note"><input type="checkbox" id="cfgVoice-alpha" class="check"> <span data-i18n="config.voice.alpha">α1 guard on or off</span></label>
+        <label class="row note"><input type="checkbox" id="cfgVoice-state" class="check"> <span data-i18n="config.voice.state">Pause, resume and end</span></label>
+        <label class="row note"><input type="checkbox" id="cfgVoice-link" class="check"> <span data-i18n="config.voice.link">Connection lost and back</span></label>
+      <div class="row mt-8">
+        <label class="field"><span data-i18n="config.voice.volume">Volume</span>
+          <input type="range" id="cfgVoiceVolume" min="10" max="100" step="10">
+        </label>
+        <button id="cfgVoiceTest" data-i18n="config.voice.test">Try it</button>
+      </div>
+    </div>
   </section>
   <section class="card">
     <h2 data-i18n="config.uploads">Uploads to Intervals.icu</h2>
