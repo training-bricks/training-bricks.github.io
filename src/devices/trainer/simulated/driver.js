@@ -48,8 +48,9 @@ export class SimulatedTrainer extends Trainer {
     this.onStatus('disconnected');
   }
 
-  /** Debug control: start or stop pedaling. */
-  simulate({ pedaling } = {}) {
+  /** Debug control: start or stop pedaling, or lose the link as Bluetooth would. */
+  simulate({ pedaling, drop } = {}) {
+    if (drop) { this.disconnect(); return; }
     if (pedaling != null) this.pedaling = !!pedaling;
     this.onLog('info', this.pedaling ? 'Simulated rider: pedaling' : 'Simulated rider: stopped');
   }

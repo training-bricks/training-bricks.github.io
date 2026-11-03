@@ -71,6 +71,13 @@ export const selectedSport = () => (app.state.selection ? (app.state.selection.e
 /** Whether the session (running or finished) belongs to this page's sport. */
 export const ownSession = (sport) => session.state !== 'idle' && session.policy?.sport === sport;
 
+/** The note about this page's device or the strap after a drop (#37), or ''. */
+export function linkNote(kind) {
+  const state = live.link[kind] ?? live.link.hr;
+  if (!ownSession(kind === 'trainer' ? 'ride' : 'run') || !state) return '';
+  return t(state === 'gave-up' ? 'session.linkLost' : 'session.reconnecting');
+}
+
 /** The chart of a page: the plan (or the session's) with its samples. */
 export function updateSessionChart(chart, sport, fallbackName) {
   const own = ownSession(sport);

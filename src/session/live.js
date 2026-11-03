@@ -8,7 +8,7 @@ import { alpha1Window } from '../physiology/hrv.js';
 
 export const STALE_MS = 3000;       // no notifications this long → speed unknown
 
-export const live = { speed: 0, incline: 0, hr: null, hrSource: null, console: {}, info: {} };
+export const live = { speed: 0, incline: 0, hr: null, hrSource: null, console: {}, info: {}, link: {} }; // link: per kind, 'reconnecting' or 'gave-up' after a drop (#37)
 
 // RR intervals (chest strap) and DFA α1 of the last 2 minutes
 const ALPHA_EVERY_MS = 5000;

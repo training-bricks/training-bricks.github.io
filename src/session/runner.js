@@ -619,6 +619,19 @@ function adjustForHr(step) {
   session.hrWantDir = 0;
 }
 
+/**
+ * A device came back after a drop (#37). The target goes again once it is
+ * moving, by the same paths as a restart: never to a belt the athlete
+ * stopped, and the session resumes on the next movement. Only the session's
+ * own device; a strap has no target.
+ */
+export function deviceBack(kind) {
+  if (isActive() && kind === policy().kind) tick.wasMoving = false;
+}
+
+/** Whether a session needs this device now: its treadmill or trainer, or the strap. */
+export const needsDevice = (kind) => isActive() && (kind === 'hr' || kind === policy().kind);
+
 // Closing or reloading the page during an active workout pauses the belt.
 // It happens on beforeunload (while the browser asks whether to leave there
 // is time for the command to arrive) and again on pagehide in case nobody

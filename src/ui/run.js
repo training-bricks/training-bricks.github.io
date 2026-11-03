@@ -13,7 +13,7 @@ import { wakeError, requestWakeLock, releaseWakeLock, initWakeLock } from '../se
 import { beep } from '../lib/sound.js';
 import { highlightSteps } from './workout.js';
 import { log, renderConsole } from './debug.js';
-import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons } from './session-screen.js';
+import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons, linkNote } from './session-screen.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
 
@@ -50,6 +50,7 @@ export function updateControls() {
     paused: t('run.note.paused'),
   };
   if (notes[state]) $('sessionNote').textContent = notes[state];
+  if (linkNote('treadmill')) $('sessionNote').textContent = linkNote('treadmill');
   if (wakeError && own && active) {
     $('sessionNote').textContent += ` ${wakeError}`;
   }
