@@ -26,10 +26,14 @@ const template = (menuId) => `
       <button data-el="fit" data-i18n="run.fit">FIT (laps and RR, for Garmin, Strava…)</button>
       <button data-el="tcx" data-i18n="run.tcx">TCX (for Strava, Garmin…)</button>
     </div>
+  </div>
+  <div class="session-feedback hidden" data-el="feedback">
+    <label class="field"><span data-i18n="feedback.rpe">How hard (RPE)</span><select data-el="rpe"></select></label>
+    <label class="field"><span data-i18n="feedback.feel">How you felt</span><select data-el="feel"></select></label>
   </div>`;
 
 class BwSessionBar extends HTMLElement {
-  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, fit, tcx. */
+  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, fit, tcx, feedback, rpe, feel. */
   el = {};
 
   connectedCallback() {

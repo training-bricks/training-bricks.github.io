@@ -13,6 +13,7 @@ import { buildTcx } from '../export/tcx.js';
 import { buildFit } from '../export/fit.js';
 import { samplesToCsv } from '../export/csv.js';
 import * as intervals from '../services/intervals.js';
+import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
 import { live, rrState, rrActive } from '../session/live.js';
 import { session, applyStep, start, endSession, cancel } from '../session/runner.js';
 import { log } from './debug.js';
@@ -120,6 +121,35 @@ export function updateSessionButtons(el, sport, { canStart, finishLabel }) {
   el.upload.disabled = !(finished && session.samples.length > 10 && intervals.getApiKey() && !session.uploaded);
   el.upload.title = intervals.getApiKey() ? t('run.uploadWhenFinished') : t('run.uploadSignIn');
   el.upload.setAttribute('aria-label', t('run.upload'));
+  el.feedback.classList.toggle('hidden', !finished);
+  if (finished) {
+    el.rpe.value = session.rpe ?? '';
+    el.feel.value = session.feel ?? '';
+  }
+}
+
+/** The RPE and Feel lists, in the interface language. */
+function fillFeedback(el) {
+  const fill = (select, values, label) => {
+    const current = select.value;
+    select.replaceChildren(new Option(t('feedback.none'), ''), ...values.map((v) => new Option(label(v), v)));
+    select.value = current;
+  };
+  fill(el.rpe, RPE_VALUES, rpeLabel);
+  fill(el.feel, FEEL_VALUES, feelLabel);
+}
+
+/** Sends the answers to the uploaded activity; a failure only says so: the activity is there. */
+async function sendFeedback(note) {
+  const fields = feedbackFields(session);
+  if (!fields || !session.activityId) return;
+  try {
+    await intervals.updateActivity(session.activityId, fields);
+    log('info', `Intervals.icu activity ${session.activityId}: ${JSON.stringify(fields)}`);
+  } catch (err) {
+    note.textContent = t('feedback.failed', { error: err.message });
+    log('error', `RPE and Feel: ${err.message}`);
+  }
 }
 
 const fileStamp = () => new Date(session.startedAt).toISOString().slice(0, 16).replace(':', '');
@@ -139,6 +169,12 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     if (session.state === 'armed') { cancel(); return; }
     endSession(t(endNote)); // a treadmill slows down to a walk first; a trainer is released
   };
+
+  // RPE and Feel: optional; after the upload an answer goes straight to the activity
+  fillFeedback(el);
+  document.addEventListener('bw-language', () => fillFeedback(el));
+  el.rpe.onchange = () => { session.rpe = pickAnswer(el.rpe.value, RPE_VALUES); sendFeedback(note); };
+  el.feel.onchange = () => { session.feel = pickAnswer(el.feel.value, FEEL_VALUES); sendFeedback(note); };
 
   // Export menu: under its button, inside the window
   el.menu.addEventListener('toggle', (e) => {
@@ -173,6 +209,7 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
       });
       const id = data.id || data.activities?.[0]?.id;
       session.uploaded = true;
+      session.activityId = id ?? null;
       note.textContent = `${t('run.uploaded')} `;
       if (id) {
         const a = Object.assign(document.createElement('a'), {
@@ -181,6 +218,7 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
         note.appendChild(a);
       }
       log('info', `Activity uploaded to Intervals.icu ${id || ''}`);
+      await sendFeedback(note);
     } catch (err) {
       note.textContent = t('run.uploadFailed', { error: err.message });
       log('error', `Upload: ${err.message}`);
