@@ -44,7 +44,12 @@ try {
   const tab = settings.get('tab');
   // Wiring first, then the data
   initTabs();
-  initVersion();
+  // Only shows information, so a failure must not stop the app (a module older than its page, 2026-11-04)
+  try {
+    initVersion();
+  } catch (err) {
+    log('warn', `Version: ${err.message}`);
+  }
   initDebug();
   initDevices();
   initRun();

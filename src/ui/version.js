@@ -4,14 +4,16 @@
  */
 import { VERSION } from '../../version.js';
 import { $ } from '../lib/dom.js';
-import { formatDateTime } from '../i18n/format.js';
+import { every } from '../lib/timer.js';
+import { formatAgo, formatStamp } from '../i18n/format.js';
 
 const REPO = 'https://github.com/ycaceres/brickwise';
+const REFRESH_MS = 60_000;
 
 /** What the card says about a version. */
-export function versionInfo({ sha, deployedAt }) {
+export function versionInfo({ sha, deployedAt }, now = Date.now()) {
   if (!deployedAt) return { commit: sha, href: null, deployed: '—' };
-  return { commit: sha.slice(0, 7), href: `${REPO}/commit/${sha}`, deployed: formatDateTime(deployedAt) };
+  return { commit: sha.slice(0, 7), href: `${REPO}/commit/${sha}`, deployed: `${formatStamp(deployedAt)} (${formatAgo(deployedAt, now)})` };
 }
 
 function render() {
@@ -25,5 +27,6 @@ function render() {
 
 export function initVersion() {
   render();
+  every(REFRESH_MS, render);
   document.addEventListener('bw-language', render);
 }
