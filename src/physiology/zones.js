@@ -19,6 +19,7 @@ const MS_TO_KMH = 3.6;
 export const DEFAULT_PACE_PCT = [77.5, 87.7, 94.3, 100, 103.4, 111.5, 999];
 export const DEFAULT_HR_PCT = [80, 89, 94, 100, 102, 106, 999];
 const DEFAULT_PACE_NAMES = ['Z1', 'Z2', 'Z3', 'Z4', 'Z5a', 'Z5b', 'Z5c'];
+const DEFAULT_RESTING_HR = 60; // bpm, until Intervals gives one
 /** Intervals.icu's default power zones (Coggan), top of each in % of FTP. */
 export const DEFAULT_POWER_PCT = [55, 75, 90, 105, 120, 150, 999];
 
@@ -125,6 +126,24 @@ export function zonesFromProfile(p) {
       }))
     : [];
   return { hr, pace, lthr, maxHr, thresholdKmh: t, ride: rideZones(p.ride) };
+}
+
+/**
+ * Where Z1 starts, from the resting HR: below it there is a Z0, and each takes
+ * half of the way from rest to Z2 (rest 50, Z2 from 130: Z0 50–90, Z1 90–130).
+ * Zones from Intervals have no bottom, and 0 bpm is no target to aim at.
+ */
+function withZ1Floor(hr, rest) {
+  if (!(hr?.length >= 2)) return hr;
+  const from = hr[1].lo;
+  const floor = Math.round(((rest > 0 && rest < from ? rest : DEFAULT_RESTING_HR) + from) / 2);
+  return [{ ...hr[0], lo: floor }, ...hr.slice(1)];
+}
+
+/** The zones (running and cycling) with the bottom of Z1 set from the resting HR. */
+export function withRestingHr(zones, rest) {
+  if (!zones) return zones;
+  return { ...zones, hr: withZ1Floor(zones.hr, rest), ride: zones.ride && { ...zones.ride, hr: withZ1Floor(zones.ride.hr, rest) } };
 }
 
 /** Pace zone (1..n) a speed belongs to. */
