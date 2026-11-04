@@ -2,7 +2,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { cueText, cueAllowed, cueTtl, GROUPS, CUE_GROUPS } from '../src/session/voice-cues.js';
-import { createSpeaker } from '../src/lib/speech.js';
+import { createSpeaker, pickVoice } from '../src/lib/speech.js';
 import { setLanguage } from '../src/i18n/index.js';
 import { startSession, runStep } from './session/harness.mjs';
 import * as runner from '../src/session/runner.js';
@@ -146,4 +146,33 @@ test('speech: an utterance that never ends does not block the queue; no speech d
   assert.equal(none.available, false);
   assert.doesNotThrow(() => none.say('x'));
   assert.doesNotThrow(() => none.cancel());
+});
+
+test('voice: each language gets a voice of its own, the fullest first, a little slow', () => {
+  const samantha = { name: 'Samantha', lang: 'en-US', default: true };
+  const thomas = { name: 'Thomas', lang: 'fr-FR' };
+  const monica = { name: 'Mónica', lang: 'es-ES', default: true };
+  const googleEs = { name: 'Google español', lang: 'es-ES' };
+  const paulina = { name: 'Paulina (Enhanced)', lang: 'es_MX' };
+  const all = [samantha, thomas, monica, googleEs, paulina];
+  assert.equal(pickVoice(all, 'fr'), thomas, 'never the default voice of another language');
+  assert.equal(pickVoice(all, 'es'), paulina);
+  assert.equal(pickVoice([samantha, monica, googleEs], 'es'), googleEs);
+  assert.equal(pickVoice([samantha, thomas, monica], 'es'), monica);
+  assert.equal(pickVoice([samantha], 'fr'), null);
+  assert.equal(pickVoice([], 'fr'), null);
+
+  const said = [];
+  let voices = [];
+  const synth = { getVoices: () => voices, speak(u) { said.push(u); u.onend(); }, cancel() {} };
+  class Utterance { constructor(text) { this.text = text; } }
+  const speaker = createSpeaker({ synth, Utterance });
+  speaker.say('Reprise', { lang: 'fr' });                    // the voices have not loaded yet
+  voices = all;
+  speaker.say('Reprise', { lang: 'fr' });
+  assert.equal(said[0].voice, undefined);
+  assert.equal(said[0].lang, 'fr');
+  assert.equal(said[1].voice, thomas);
+  assert.equal(said[1].lang, 'fr-FR');
+  assert.ok(said.every((u) => u.rate === 0.9));
 });
