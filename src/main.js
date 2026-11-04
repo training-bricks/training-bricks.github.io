@@ -38,6 +38,8 @@ try {
   window.appLoadFailed?.();
   throw err;
 }
+// Everything up to showTab() runs before the next paint, so the shell appears complete
+document.documentElement.classList.add('app-ready');
 
 {
   const saved = settings.get('profile');

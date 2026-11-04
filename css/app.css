@@ -355,3 +355,11 @@ details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 .as-written { text-transform: none; }
 input.check { min-height: auto; }
 .field-end { align-self: end; min-height: var(--control-h); }
+
+/* Startup: a spinner instead of a shell without icons or pages until src/main.js has them.
+   After 15 s the shell shows anyway, so a module that never gets there cannot hide the app. */
+html:not(.app-ready) .sidebar, html:not(.app-ready) main { visibility: hidden; animation: bw-reveal 0s 15s forwards; }
+html:not(.app-ready):not(.app-failed) body::after { content: ""; position: fixed; top: 50%; left: 50%; width: 32px; height: 32px; margin: -16px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; opacity: 0; animation: bw-spin 0.8s linear infinite, bw-show 14.7s 0.3s; }
+@keyframes bw-reveal { to { visibility: visible; } }
+@keyframes bw-spin { to { transform: rotate(360deg); } }
+@keyframes bw-show { from, to { opacity: 1; } }

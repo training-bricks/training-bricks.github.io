@@ -17,12 +17,12 @@
 <body>
 <nav class="sidebar" role="tablist" aria-orientation="vertical">
   <div class="nav-group">
-    <button role="tab" id="nav-home" data-i18n-label="nav.home" aria-selected="false" aria-label="Home" title="Home"><bw-icon name="home"></bw-icon></button>
+    <button role="tab" id="nav-home" data-i18n-label="nav.home" aria-selected="true" aria-label="Home" title="Home"><bw-icon name="home"></bw-icon></button>
     <button role="tab" id="nav-workouts" data-i18n-label="nav.workouts" aria-selected="false" aria-label="Training library" title="Training library"><bw-icon name="library"></bw-icon></button>
   </div>
   <!-- Between the groups: optional and contextual buttons -->
   <div class="nav-group nav-context">
-    <button role="tab" id="nav-run" data-i18n-label="nav.run" aria-selected="true" aria-label="Run" title="Run"><bw-icon name="run"></bw-icon></button>
+    <button role="tab" id="nav-run" data-i18n-label="nav.run" aria-selected="false" aria-label="Run" title="Run"><bw-icon name="run"></bw-icon></button>
     <button role="tab" id="nav-ride" data-i18n-label="nav.ride" aria-selected="false" aria-label="Ride" title="Ride"><bw-icon name="ride"></bw-icon></button>
     <button role="tab" id="nav-debug" data-i18n-label="nav.debug" aria-selected="false" aria-label="Debug" title="Debug" class="hidden"><bw-icon name="debug"></bw-icon></button>
   </div>
@@ -82,6 +82,7 @@
       return;
     }
     const div = document.createElement('div');
+    document.documentElement.classList.add('app-failed');
     div.className = 'banner';
     div.style.margin = '16px';
     div.textContent = 'Could not load the app files (the connection dropped). Reload the page.';
