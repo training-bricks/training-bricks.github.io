@@ -13,7 +13,7 @@ Runs your Intervals.icu workouts on a treadmill or a smart trainer over Bluetoot
   - a built-in library of 214 run and bike workouts (3 durations × 5 levels), in % of threshold pace or FTP and in zones;
   - free sessions.
 - **Devices:** NordicTrack EXP 5i, FTMS treadmills and FTMS smart trainers (tested on a Wahoo KICKR CORE), any Bluetooth HR strap. There are simulators for testing without hardware.
-- **HR control:** speed (or incline) on the treadmill and watts in ERG follow HR, with projection, proportional corrections and a **DFA α1 guard** that holds you under the aerobic threshold. See [HR control and DFA α1](https://github.com/ycaceres/brickwise/wiki/HR-control-and-DFA-alpha1).
+- **HR control:** speed (or incline) on the treadmill and watts in ERG follow HR, with projection, proportional corrections and a **DFA α1 guard** that holds you under the aerobic threshold (optional, per workout). Each repetition starts where the last one like it ended, and a Z1 step only slows down above its top. A strap losing contact is not believed: the target holds, and after a minute it goes back to the plan. See [HR control and DFA α1](https://github.com/ycaceres/brickwise/wiki/HR-control-and-DFA-alpha1).
 - **Physiology:**
   - live DFA α1;
   - an α1 threshold test (VT1 / VT2), on the treadmill and on the bike;
