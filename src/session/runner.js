@@ -9,7 +9,7 @@
  */
 
 import { createEmitter } from '../lib/events.js';
-import { targetSpeedAt } from '../workouts/steps.js';
+import { targetSpeedAt, searchesSpeed } from '../workouts/steps.js';
 import { VT1, VT2 } from '../physiology/hrv.js';
 import { analyzeRamp } from '../physiology/thresholds.js';
 import { hrDecision, hrSlope, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM, SPEED, POWER, roundTo } from './hr-control.js';
@@ -70,6 +70,8 @@ const HR_GRACE_S = 45;       // at the start of a step HR takes a while to respo
 const HR_HOLD_S = 10;        // the same correction must be asked for this long in a row
 const HR_SPACING_S = 25;     // between one adjustment and the next
 const HR_RISE_SPACING_S = 60; // between two rises: HR answers a rise 1–2 min later (#10)
+const SEARCH_RISE_SPACING_S = 30; // the same while searching for the speed, far under the aim
+const SEARCH_MAX_KMH = 12;   // a search never goes above this: a strap reading low must not speed the belt up for ever
 const ALPHA_HOLD_S = 60;     // median α1 of this many seconds below VT1 → the α1 guard is on
 const ALPHA_RELEASE = 0.8;   // the guard turns off once the median α1 is above this…
 const ALPHA_RELEASE_S = 60;  // …over this many seconds (hysteresis: VT1 alone flipped it back and forth, #10)
@@ -255,6 +257,11 @@ function pushIncline() {
 /** Sends the target speed if it changed (ramps and manual adjustments). */
 export function pushTarget(force = false) {
   const step = currentStep();
+  if (searching(step)) {
+    // Nothing planned to go back to: the speed HR found goes again (a restart)
+    if (force && session.target != null) device()?.setTarget({ speed: session.target });
+    return;
+  }
   if (!step?.hasTarget) { session.target = null; return; }
   const base = targetSpeedAt(step, stepProgress(step));
   const l = limits();
@@ -263,6 +270,15 @@ export function pushTarget(force = false) {
     session.target = t;
     device()?.setTarget({ speed: t });
   }
+}
+
+/** A step whose speed HR is finding, from wherever the belt is: nothing planned, on a treadmill. */
+export const searching = (step) => session.hrOn && policy().kind === 'treadmill' && searchesSpeed(step);
+
+/** The speed asked of the belt now: what the console reports includes the changes made on it. */
+function beltTarget() {
+  const reported = live.console.targetSpeed;
+  return reported > 0 ? reported : session.target ?? live.speed;
 }
 
 /**
@@ -607,7 +623,8 @@ function alphaGuard() {
  */
 function adjustForHr(step) {
   const guard = alphaGuard();
-  if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !(step.hasTarget || step.power) || !live.hr) return;
+  const search = searching(step);
+  if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !(step.hasTarget || step.power || search) || !live.hr) return;
   const t = session.stepElapsed;
   if (t < (step.hr.settle ?? HR_GRACE_S)) return;
   const { lo, hi, mode } = step.hr;
@@ -616,10 +633,10 @@ function adjustForHr(step) {
   const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr: live.hr, z1Top: zones()?.hr[0]?.hi };
   const veto = guard && alphaVetoApplies(where);
   const spaced = session.alphaLastDrop == null || session.totalElapsed - session.alphaLastDrop >= ALPHA_DROP_SPACING_S;
-  const { delta, reason, alpha } = hrDecision({
+  const { delta, reason, alpha, far } = hrDecision({
     mode, lo, hi, hr: live.hr, slope: hrSlope(recent), hrAdjust: session.hrAdjust,
     alphaVeto: veto, alphaDrop: veto && spaced && alphaDropApplies(where), giveBack: !step.cooldown,
-    aim: mode === 'target' && step.zone != null && step.zone <= 2 ? AEROBIC_AIM : 0.5,
+    aim: mode === 'target' && step.zone != null && step.zone <= 2 ? AEROBIC_AIM : 0.5, search,
   }, a);
   const dir = Math.sign(delta);
   if (!dir) { session.hrOutSince = null; session.hrWantDir = 0; return; }
@@ -627,7 +644,7 @@ function adjustForHr(step) {
   if (t - session.hrOutSince < HR_HOLD_S) return;
   const byIncline = step.hr.by === 'incline';
   if (session.hrLastAdjust != null && t - session.hrLastAdjust < (byIncline ? INCLINE_SPACING_S : HR_SPACING_S)) return;
-  if (dir > 0 && session.hrLastRise != null && t - session.hrLastRise < HR_RISE_SPACING_S) return;
+  if (dir > 0 && session.hrLastRise != null && t - session.hrLastRise < (far ? SEARCH_RISE_SPACING_S : HR_RISE_SPACING_S)) return;
   if (byIncline) {
     // The incline moves within the treadmill's range; speed stays as planned
     const l = limits();
@@ -640,17 +657,23 @@ function adjustForHr(step) {
     pushIncline();
   } else {
     // Speed on a treadmill, watts on a trainer, within the step's limits
+    // A search has no plan to stay close to: only the belt's limits and its ceiling
     const maxUp = mode === 'target' ? a.maxUp : 0;
-    const next = roundTo(Math.min(maxUp, Math.max(-a.maxDown, session.hrAdjust + delta)), a.decimals);
-    if (next === session.hrAdjust) return;
-    const applied = roundTo(next - session.hrAdjust, a.decimals);
-    session.hrAdjust = next;
+    const l = limits();
+    const before = search ? beltTarget() : session.hrAdjust;
+    const next = search
+      ? roundTo(Math.min(l.speedMax ?? Infinity, SEARCH_MAX_KMH, Math.max(l.speedMin ?? 0, before + delta)), a.decimals)
+      : roundTo(Math.min(maxUp, Math.max(-a.maxDown, before + delta)), a.decimals);
+    if (next === before) return;
+    const applied = roundTo(next - before, a.decimals);
+    session.hrAdjust = search ? roundTo(session.hrAdjust + applied, a.decimals) : next;
     if (applied > 0) { session.stats.hrRises += 1; session.stats.hrUp = roundTo(session.stats.hrUp + applied, a.decimals); }
     else { session.stats.hrDrops += 1; session.stats.hrDown = roundTo(session.stats.hrDown - applied, a.decimals); }
     cue({ kind: 'hr', delta: applied, unit: a.unit });
     const what = a === POWER ? 'power' : 'speed';
-    log('info', `${reason}: ${what} ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(a.decimals)} ${a.unit}, HR adjustment ${next > 0 ? '+' : ''}${next.toFixed(a.decimals)}`);
-    if (a === POWER) pushPower(); else pushTarget();
+    log('info', `${reason}: ${what} ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(a.decimals)} ${a.unit}, HR adjustment ${session.hrAdjust > 0 ? '+' : ''}${session.hrAdjust.toFixed(a.decimals)}`);
+    if (search) { session.target = next; device()?.setTarget({ speed: next }); }
+    else if (a === POWER) pushPower(); else pushTarget();
   }
   session.hrLastAdjust = t;
   if (dir > 0) session.hrLastRise = t;

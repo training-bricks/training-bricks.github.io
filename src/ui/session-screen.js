@@ -17,7 +17,7 @@ import * as settings from '../lib/settings.js';
 import { uploadDescription } from '../session/summary.js';
 import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
 import { live, rrState, rrActive } from '../session/live.js';
-import { session, events as sessionEvents, applyStep, start, endSession, cancel, setIntensity } from '../session/runner.js';
+import { session, events as sessionEvents, applyStep, start, endSession, cancel, setIntensity, currentStep, searching } from '../session/runner.js';
 import { intensityFactor, INTENSITY_MIN, INTENSITY_MAX } from '../session/policies.js';
 import { log } from './debug.js';
 import * as app from '../state.js';
@@ -136,7 +136,8 @@ export function updateSessionButtons(el, sport, { canStart, finishLabel }) {
   el.upload.disabled = !(finished && session.samples.length > 10 && intervals.getApiKey() && !session.uploaded);
   el.upload.title = intervals.getApiKey() ? t('run.uploadWhenFinished') : t('run.uploadSignIn');
   el.upload.setAttribute('aria-label', t('run.upload'));
-  const scaling = own && active && session.steps.length > 0;
+  // A step whose speed HR is finding has nothing planned to scale
+  const scaling = own && active && session.steps.length > 0 && !searching(currentStep());
   el.intensityBox.classList.toggle('hidden', !scaling);
   el.intensity.textContent = `${session.intensity} %`;
   el.intensityDown.disabled = session.intensity <= INTENSITY_MIN;

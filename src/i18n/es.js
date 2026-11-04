@@ -127,6 +127,7 @@ export default {
   'run.note.running': 'Entrenamiento en curso.',
   'run.note.runningFree': 'Sesión libre en curso.',
   'run.note.paused': 'En pausa: la banda está detenida. Pulsa START en la consola para seguir.',
+  'run.note.searching': 'No hay ritmo umbral en el Perfil: la velocidad parte de la que lleva la banda y sube poco a poco hasta que la frecuencia cardiaca llega al objetivo.',
   'run.note.noThreshold': 'Falta el ritmo umbral en el Perfil: sin él, este entrenamiento no tiene velocidades.',
   'run.note.bikeWorkout': 'Es un entrenamiento de bici: se hace en la página Bici, con un rodillo inteligente.',
   'run.note.safetyKey': 'Falta la llave de seguridad: colócala en la consola.',

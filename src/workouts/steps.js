@@ -119,6 +119,12 @@ export function followsHr(steps) {
     main.every((s) => s.zone != null && s.zone <= (long.includes(s) ? 3 : 2));
 }
 
+/**
+ * An HR target with no speed to start from (no threshold pace in the profile):
+ * HR finds the speed, from wherever the belt is (session/runner.js).
+ */
+export const searchesSpeed = (step) => step?.hr?.mode === 'target' && !step.hasTarget && !step.power && step.hr.by !== 'incline';
+
 /** Target speed within a step for a given progress (0..1), with ramps. */
 export function targetSpeedAt(step, progress) {
   if (!step.hasTarget) return null;

@@ -192,6 +192,86 @@ test('flow: the slow-down stops if the belt is paused from the console, and the 
   assert.equal(c.sent.length, n, 'and the slow-down is over');
 });
 
+const search = (o = {}) => runStep({ hasTarget: false, speedStart: null, speedEnd: null, duration: 1800, hr: { lo: 146, hi: 153, mode: 'target' }, ...o });
+const belt = (h, from) => () => h.speeds().at(-1)?.speed ?? from;
+
+test('flow: an HR step with no planned speed starts from the belt and rises 0.5 km/h every 30 s while far under the aim', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  assert.equal(h.runner.searching(h.session.steps[0]), true);
+  h.run(180, { speed: belt(h, 2), hr: 100 });
+  const sent = h.speeds();
+  assert.equal(sent[0].speed, 2.5, 'from the belt, not from a plan');
+  assert.ok(sent[0].at >= 45 && sent[0].at < 60, 'after the grace');
+  assert.ok(sent.every((x, i) => !i || x.at - sent[i - 1].at >= 30));
+  assert.ok(sent.every((x, i) => !i || Math.abs(x.speed - sent[i - 1].speed - 0.5) < 1e-9));
+  assert.equal(h.session.samples.at(-1).target, sent.at(-1).speed);
+});
+
+test('flow: the search goes on rising while HR does not, up to its ceiling, past the +1.5 km/h of a planned step', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(1200, { speed: belt(h, 2), hr: 100 });
+  assert.equal(h.speeds().at(-1).speed, 12);
+  assert.equal(h.session.hrAdjust, 10);
+});
+
+test('flow: near the aim the search is careful: +0.2 km/h, 60 s apart, not while HR climbs; above it, speed comes down', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(240, { speed: belt(h, 6), hr: 135 });                // 14 under the aim (149), steady
+  const near = h.speeds();
+  assert.ok(near.length >= 2);
+  assert.ok(near.every((x, i) => (i ? x.speed - near[i - 1].speed : x.speed - 6) < 0.21));
+  assert.ok(near.every((x, i) => !i || x.at - near[i - 1].at >= 60));
+
+  const climbing = startSession({ steps: [search()], hrOn: true });
+  climbing.run(240, { speed: belt(climbing, 6), hr: (t) => 115 + t * 0.1 }); // rising 6 bpm/min, projected within 20 of the aim from ~3 min
+  const late = climbing.speeds().filter((x) => x.at > 200);
+  assert.equal(late.length, 0, 'no rise while HR is still climbing near the aim');
+
+  const high = startSession({ steps: [search()], hrOn: true });
+  high.run(120, { speed: belt(high, 9), hr: 165 });
+  assert.ok(high.speeds().at(-1).speed < 9);
+});
+
+test('flow: the search moves on from a speed changed on the console, stops with no HR, and the α1 guard still blocks rises', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(60, { speed: belt(h, 2), hr: 100 });
+  live.console.targetSpeed = 5;                              // the athlete raised it on the console
+  h.run(40, { speed: 5, hr: 100 });
+  live.console.targetSpeed = undefined;
+  assert.equal(h.speeds().at(-1).speed, 5.5);
+
+  const noHr = startSession({ steps: [search()], hrOn: true });
+  noHr.run(300, { speed: 2, hr: null });
+  assert.equal(noHr.speeds().length, 0);
+
+  const guard = startSession({ steps: [search({ zone: 2 })], hrOn: true });
+  guard.run(180, { speed: belt(guard, 6), hr: 120, alpha1: 1 });
+  const n = guard.speeds().length;
+  guard.run(300, { speed: belt(guard, 6), hr: 120, alpha1: 0.5 });
+  const after = guard.speeds().slice(n);
+  const top = guard.speeds()[n - 1]?.speed;
+  assert.ok(after.filter((x) => x.at > 300).every((x) => x.speed <= top), 'no rises with α1 low');
+});
+
+test('flow: after a restart the speed the search found goes again; without HR on, or with a planned speed, nothing searches', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(120, { speed: belt(h, 4), hr: 100 });
+  const found = h.speeds().at(-1).speed;
+  h.run(5, { speed: 0, hr: 100 });
+  assert.equal(h.session.state, 'paused');
+  const n = h.sent.length;
+  h.run(1, { speed: 2, hr: 100 });
+  assert.equal(h.session.state, 'running');
+  assert.equal(h.sent.slice(n).find((x) => x.speed != null).speed, found);
+
+  const off = startSession({ steps: [search()], hrOn: false });
+  off.run(300, { speed: 2, hr: 100 });
+  assert.equal(off.speeds().length, 0);
+
+  const planned = startSession({ steps: [runStep({ hr: { lo: 146, hi: 153, mode: 'target' } })], hrOn: true });
+  assert.equal(planned.runner.searching(planned.session.steps[0]), false);
+});
+
 test('flow: the real treadmill simulator drives a session', async () => {
   const { getDriver } = await import('../src/devices/registry.js');
   const h = startSession({ steps: [runStep({ speedStart: 8, speedEnd: 8 })] });

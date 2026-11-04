@@ -127,6 +127,7 @@ export default {
   'run.note.running': 'Séance en cours.',
   'run.note.runningFree': 'Séance libre en cours.',
   'run.note.paused': 'En pause : le tapis est arrêté. Appuyez sur START sur la console pour continuer.',
+  'run.note.searching': 'Pas d’allure seuil dans le Profil : la vitesse part de celle du tapis et monte peu à peu jusqu’à ce que la fréquence cardiaque atteigne la cible.',
   'run.note.noThreshold': 'Il manque l’allure seuil dans le Profil : sans elle, cette séance n’a pas de vitesses.',
   'run.note.bikeWorkout': 'C’est une séance de vélo : elle se fait sur la page Vélo, avec un home trainer.',
   'run.note.safetyKey': 'Clé de sécurité absente : placez-la sur la console.',

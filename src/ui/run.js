@@ -6,7 +6,7 @@
  */
 
 import { $ } from '../lib/dom.js';
-import { formatPace } from '../workouts/steps.js';
+import { formatPace, searchesSpeed } from '../workouts/steps.js';
 import { live } from '../session/live.js';
 import { session, events as sessionEvents, isActive, currentStep, pushTarget, pauseOnClose } from '../session/runner.js';
 import { wakeError, requestWakeLock, releaseWakeLock, initWakeLock } from '../session/wake-lock.js';
@@ -57,6 +57,11 @@ export function updateControls() {
   }
   if (state === 'idle' && app.state.selection?.needsProfile && !ride) {
     $('sessionNote').textContent = t('run.note.noThreshold');
+  }
+  // The selection does not change during a session
+  const sel = app.state.selection;
+  if (!ride && ['idle', 'armed', 'running'].includes(state) && !linkNote('treadmill') && sel?.hrOn && sel.steps.some(searchesSpeed)) {
+    $('sessionNote').textContent = t('run.note.searching');
   }
   if (state === 'idle' && ride) {
     $('sessionNote').textContent = t('run.note.bikeWorkout');

@@ -127,6 +127,7 @@ export default {
   'run.note.running': 'Workout in progress.',
   'run.note.runningFree': 'Free session in progress.',
   'run.note.paused': 'Paused: the belt is stopped. Press START on the console to continue.',
+  'run.note.searching': 'No threshold pace in Profile: the speed starts from the belt and rises bit by bit until your heart rate reaches the target.',
   'run.note.noThreshold': 'Threshold pace is missing in Profile: without it, this workout has no speeds.',
   'run.note.bikeWorkout': 'This is a bike workout: it runs on the Ride page, with a smart trainer.',
   'run.note.safetyKey': 'Safety key missing: attach it to the console.',
