@@ -15,7 +15,6 @@ export default {
   'header.hrmHelp': 'Connect a heart rate monitor (HRM)',
 
   // footer
-  'footer.published': 'Published on {date}',
   'footer.disclaimer': 'Brickwise is an independent project, not affiliated with or endorsed by any equipment manufacturer. All trademarks belong to their respective owners.',
 
   // common
@@ -211,6 +210,9 @@ export default {
   'summary.cooldown': 'Cool-down started at {value}',
   'summary.intensity': 'Intensity {pct} %',
   'summary.feel': 'Feel',
+  'config.version': 'Version',
+  'config.version.commit': 'Commit',
+  'config.version.deployed': 'Deployed',
   'config.uploads': 'Uploads to Intervals.icu',
   'config.summary': 'Add a session summary to the activity description',
   'config.summaryNote': 'What HR control did, aerobic metrics or the test, pauses, intensity, RPE and Feel.',

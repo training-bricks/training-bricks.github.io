@@ -15,7 +15,6 @@ export default {
   'header.hrmHelp': 'Conectar un monitor de frecuencia cardiaca (HRM)',
 
   // footer
-  'footer.published': 'Publicada el {date}',
   'footer.disclaimer': 'Brickwise es un proyecto independiente, no afiliado ni respaldado por ningún fabricante de equipos. Todas las marcas pertenecen a sus respectivos dueños.',
 
   // common
@@ -211,6 +210,9 @@ export default {
   'summary.cooldown': 'Enfriamiento iniciado a {value}',
   'summary.intensity': 'Intensidad {pct} %',
   'summary.feel': 'Sensación',
+  'config.version': 'Versión',
+  'config.version.commit': 'Commit',
+  'config.version.deployed': 'Publicada',
   'config.uploads': 'Subidas a Intervals.icu',
   'config.summary': 'Añadir un resumen de la sesión a la descripción de la actividad',
   'config.summaryNote': 'Qué hizo el control por FC, métricas aeróbicas o la prueba, pausas, intensidad, RPE y sensación.',
