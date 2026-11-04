@@ -39,6 +39,7 @@ export function menuEntries(kind, { debug = false, device = null, last = null } 
     out.push(kind === 'trainer'
       ? { action: 'sim-pedal', label: t('devices.simPedal') }
       : { action: 'sim-belt', label: t('devices.simBelt') });
+    out.push({ action: 'sim-drop', label: t('devices.simDrop') });
   }
   if (connected) out.push({ action: 'disconnect', label: t('devices.disconnect'), danger: true });
   return out;

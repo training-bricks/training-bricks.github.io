@@ -13,14 +13,16 @@ Runs your Intervals.icu workouts on a treadmill or a smart trainer over Bluetoot
   - a built-in library of 214 run and bike workouts (3 durations × 5 levels), in % of threshold pace or FTP and in zones;
   - free sessions.
 - **Devices:** NordicTrack EXP 5i, FTMS treadmills and FTMS smart trainers (tested on a Wahoo KICKR CORE), any Bluetooth HR strap. There are simulators for testing without hardware.
-- **HR control:** speed (or incline) on the treadmill and watts in ERG follow HR, with projection, proportional corrections and a **DFA α1 guard** that holds you under the aerobic threshold. See [HR control and DFA α1](https://github.com/ycaceres/brickwise/wiki/HR-control-and-DFA-alpha1).
+- **HR control:** speed (or incline) on the treadmill and watts in ERG follow HR, with projection, proportional corrections and a **DFA α1 guard** that holds you under the aerobic threshold (optional, per workout). Each repetition starts where the last one like it ended, and a Z1 step only slows down above its top. A strap losing contact is not believed: the target holds, and after a minute it goes back to the plan. See [HR control and DFA α1](https://github.com/ycaceres/brickwise/wiki/HR-control-and-DFA-alpha1).
 - **Physiology:**
   - live DFA α1;
-  - an α1 threshold test (VT1 / VT2);
+  - an α1 threshold test (VT1 / VT2), on the treadmill and on the bike;
+  - a warning when the HR zones disagree with VT1;
   - Pa:HR / Pw:HR decoupling and VT1 after steady aerobic sessions.
   
   See [Threshold test and aerobic metrics](https://github.com/ycaceres/brickwise/wiki/Threshold-test-and-aerobic-metrics).
-- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, TCX, and upload to Intervals.icu.
+- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu with a session summary, RPE and Feel.
+- **During a session:** workout intensity (70–120 %), voice cues, automatic reconnection after a Bluetooth drop, and recovery after a reload or a closed tab.
 - **App:** an installable PWA that works offline, in English, Spanish and French, with light and dark palettes.
 
 ## Getting started
@@ -52,13 +54,13 @@ npm start            # python3 tools/serve.py 8000; open http://localhost:8000
 2. Optional: the **HRM** pill, for a strap. α1 needs a chest strap with RR intervals.
 3. Pick a workout in **Home** or the **Training library**, and press ▶ on its page (or start a free session).
 4. Press **▶ (start)**. On a treadmill, press START on the console. The session begins when the belt moves or you pedal, and it pauses when you stop.
-5. When done, upload to Intervals.icu or download the CSV / TCX.
+5. When done, upload to Intervals.icu or download the CSV / FIT / TCX.
 
 More in the [User guide](https://github.com/ycaceres/brickwise/wiki/User-guide). Open the page with `?debug=true` for the simulators and the Debug tab ([Troubleshooting](https://github.com/ycaceres/brickwise/wiki/Troubleshooting)).
 
 ## Safety
 - The belt is started only from the console, with the safety key attached (same as qdomyos-zwift with this model).
-- **■ (finish)**, and also the end of the workout's last step, **slow the belt down before pausing it**: never from running speed to 0 at once, which can make you stumble. The incline goes to 0 and the speed comes down 0.5 km/h every 2 s to a 3 km/h walk (8 km/h → 3 in 20 s), stays there 5 s, then the belt pauses (Mode = 3, like the console's pause button). At 3 km/h or less it pauses right away. Pausing or stopping from the console during the slow-down ends it. From the console you can resume or finish. The EXP 5i rejects speed 0 with code 4, so it is not used. If the treadmill does not respond, STOP on the console or pulling the key is still required.
+- **■ (finish)**, and also the end of the workout's last step, **slow the belt down before pausing it**: never from running speed to 0 at once, which can make you stumble. The incline goes to 0 and the speed comes down 0.5 km/h every 2 s to the belt's lowest speed (8 km/h → 0.8 in 30 s on the EXP 5i), stays there 3 s, then the belt pauses (Mode = 3, like the console's pause button). At that speed or less it pauses right away. Pausing or stopping from the console during the slow-down ends it. From the console you can resume or finish. The EXP 5i rejects speed 0 with code 4, so it is not used. If the treadmill does not respond, STOP on the console or pulling the key is still required.
 - **Closing or reloading the page** during an active workout, or while the belt slows down after it, pauses the belt at once (Mode = 3): nobody would be left to slow it down. The command goes out when the browser asks whether to leave; if you stay, the session remains paused and START on the console resumes it. It is best effort: if the browser closes abruptly (or hangs), the command may not arrive.
 - If the belt stops for more than 2 s, the session pauses. If the connection drops or data stops arriving, no distance is counted.
 - Speed is limited to 0.8–16 km/h and incline to 0–10 %.

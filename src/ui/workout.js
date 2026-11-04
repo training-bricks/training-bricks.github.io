@@ -31,7 +31,8 @@ function renderWorkout() {
   const sel = app.state.selection;
   const body = $('wSteps');
   const ride = sel?.event.sport === 'ride';
-  $('wHrAdjustRow').hidden = !sel?.hrControl;
+  $('wHrAdjustRow').hidden = $('wAlphaRow').hidden = !sel?.hrControl;
+  $('wAlphaGuard').disabled = !$('wHrAdjust').checked;
   // On a bike HR moves the watts instead of the speed
   const adjust = $('wHrAdjustRow').querySelector('[data-i18n]');
   adjust.dataset.i18n = ride ? 'workout.hrAdjustRide' : 'workout.hrAdjust';
@@ -97,12 +98,13 @@ const readOptions = () => ({
   position: $('wPosition').value,
   defaultIncline: parseFloat($('wIncline').value) || 0,
   hrAdjust: $('wHrAdjust').checked,
+  alphaGuard: $('wAlphaGuard').checked,
 });
 
 /** Startup: the options (pace in the zone, base incline, HR adjust) and the redraw on each selection. */
 export function initWorkoutPage() {
   app.setWorkoutOptions(readOptions());
-  for (const id of ['wPosition', 'wIncline', 'wHrAdjust']) $(id).onchange = () => app.setWorkoutOptions(readOptions());
+  for (const id of ['wPosition', 'wIncline', 'wHrAdjust', 'wAlphaGuard']) $(id).onchange = () => app.setWorkoutOptions(readOptions());
   app.on('selection', () => {
     renderWorkout();
     updatePreview();

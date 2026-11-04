@@ -23,10 +23,10 @@ test('device menu: the FTMS trainer driver connects through its own chooser', ()
 
 test('device menu: a connected simulator offers its controls and Disconnect', () => {
   const tm = menuEntries('treadmill', { debug: true, device: { connected: true, simulate() {} } });
-  assert.deepEqual(tm.map((x) => x.action), ['connect', 'simulator', 'sim-belt', 'disconnect']);
+  assert.deepEqual(tm.map((x) => x.action), ['connect', 'simulator', 'sim-belt', 'sim-drop', 'disconnect']);
   assert.equal(tm[0].disabled, true);
   const tr = menuEntries('trainer', { debug: true, device: { connected: true, simulate() {} } });
-  assert.deepEqual(tr.map((x) => x.action), ['connect', 'simulator', 'sim-pedal', 'disconnect']);
+  assert.deepEqual(tr.map((x) => x.action), ['connect', 'simulator', 'sim-pedal', 'sim-drop', 'disconnect']);
   // A real device without simulate(): just Disconnect
   assert.deepEqual(menuEntries('treadmill', { device: { connected: true } }).map((x) => x.action), ['connect', 'disconnect']);
 });

@@ -107,6 +107,7 @@ export class FtmsTrainer extends Trainer {
     const was = this.running;
     this._cancelRamp();
     this.running = false;
+    this.sentPower = null; // reconnecting: the next target has no ramp from before the drop
     if (was) this.onStatus('disconnected');
   }
 }

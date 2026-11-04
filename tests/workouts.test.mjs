@@ -1,8 +1,8 @@
 // Intervals.icu workout_doc → treadmill steps, and the workout library
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { flattenWorkout, followsHr, targetSpeedAt, formatPace, formatDuration } from '../src/workouts/steps.js';
-import { zonesFromProfile, profileFromIntervals, resolveDoc, rideFromIntervals, rideZones } from '../src/physiology/zones.js';
+import { flattenWorkout, followsHr, searchesSpeed, targetSpeedAt, formatPace, formatDuration } from '../src/workouts/steps.js';
+import { zonesFromProfile, profileFromIntervals, withRestingHr, resolveDoc, rideFromIntervals, rideZones } from '../src/physiology/zones.js';
 import { parseDur } from '../src/workouts/library.js';
 import { inclineStep } from '../src/session/hr-control.js';
 import { sportOf } from '../src/services/intervals.js';
@@ -287,4 +287,41 @@ test('#31: a run written in power zones gets the pace zone in the same position;
   const ride = flattenWorkout(resolveDoc(doc, zones, 'ride'), { zones });
   assert.ok(ride[1].power && ride[1].speedStart == null);
   assert.ok(flattenWorkout(resolveDoc(doc, zones), { zones })[1].power);
+});
+
+test('flattenWorkout: an HR ramp across zones ramps the speed and HR only caps it', () => {
+  const zones = withRestingHr(zonesFromProfile(profileFromIntervals(runSettings)), 50);
+  const doc = { steps: [
+    { duration: 180, ramp: true, hr: { units: 'hr_zone', start: 1, end: 2 } },
+    { duration: 180, hr: { units: 'hr_zone', value: 2 } },
+    { duration: 120, hr: { units: 'hr_zone', value: 1 } },
+  ] };
+  const [ramp, z2, z1] = flattenWorkout(doc, { zones });
+  assert.equal(ramp.ramp, true);
+  assert.equal(ramp.speedStart, z1.speedStart);
+  assert.equal(ramp.speedEnd, z2.speedStart);
+  assert.ok(ramp.speedEnd > ramp.speedStart);
+  assert.deepEqual(ramp.hr, { lo: 93, hi: 150, mode: 'cap' });
+  assert.match(ramp.label, /93–150 \(Z1→Z2\)/);
+  assert.deepEqual(z1.hr, { lo: 93, hi: 134, mode: 'target' }, 'Z1 aims at a real heart rate, not at the middle of 0–134');
+  assert.equal(z2.hr.mode, 'target');
+});
+
+test('flattenWorkout: an HR ramp with no threshold pace still searches for the speed', () => {
+  const zones = zonesFromProfile(profileFromIntervals({ ...runSettings, threshold_pace: null }));
+  const [ramp] = flattenWorkout({ steps: [{ duration: 180, ramp: true, hr: { units: 'hr_zone', start: 1, end: 2 } }] }, { zones });
+  assert.equal(ramp.hasTarget, false);
+  assert.equal(ramp.hr.mode, 'target');
+  assert.equal(searchesSpeed(ramp), true);
+});
+
+test('withRestingHr: Z0 and Z1 share the way from rest to Z2', () => {
+  const zones = (hi) => ({ hr: [{ z: 1, lo: 0, hi }, { z: 2, lo: hi + 1, hi: hi + 20 }], ride: null });
+  assert.equal(withRestingHr(zones(129), 50).hr[0].lo, 90);
+  assert.equal(withRestingHr(zones(129), null).hr[0].lo, 95, 'no resting HR yet: 60 bpm');
+  assert.equal(withRestingHr(zones(129), 140).hr[0].lo, 95, 'a resting HR above Z2 is not believed');
+  assert.equal(withRestingHr(zones(129), 50).hr[1].lo, 130, 'the other zones stay');
+  assert.equal(withRestingHr(null, 50), null);
+  const ride = withRestingHr({ hr: [], ride: { hr: zones(129).hr } }, 50);
+  assert.equal(ride.ride.hr[0].lo, 90);
 });

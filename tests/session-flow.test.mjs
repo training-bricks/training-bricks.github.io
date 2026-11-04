@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { startSession, runStep } from './session/harness.mjs';
 import { parseSessionCsv, replay } from './session/replay.mjs';
 import { samplesToCsv } from '../src/export/csv.js';
-import { live } from '../src/session/live.js';
+import { live, rrState, hrNow } from '../src/session/live.js';
+import * as runner from '../src/session/runner.js';
 
 const Z2 = { lo: 135, hi: 150, mode: 'target' };   // Z2 of the fixture profile; Z1 tops at 134
 const gaps = (list) => list.slice(1).map((x, i) => x.at - list[i].at);
@@ -88,7 +89,7 @@ test('flow (#10): a short HR dip does not justify a rise; a long one does', () =
     elapsed: s, distance: s * 2.5, speed: 9, incline: 1,
     hr: s >= 200 && s < 200 + dip ? 137 : 142,
   }));
-  for (const [dip, rises] of [[8, 0], [15, 1]]) {
+  for (const [dip, rises] of [[8, 0], [15, 0], [25, 1]]) {
     const h = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
     replay(h, parseSessionCsv(samplesToCsv(series(dip))));
     const sp = h.speeds();
@@ -108,6 +109,15 @@ test('flow (#10, 2026-10-30): HR at the Z1/Z2 boundary with low α1 no longer sa
   assert.equal(rises.length, 0, `no rise once α1 is low: ${JSON.stringify(all)}`);
   assert.ok(sp.length >= 3, 'α1 still brings speed down');
   assert.ok(gaps(sp).every((g) => g >= 90), `α1 drops at least 90 s apart: ${gaps(sp)}`);
+});
+
+test('flow: with the HR range only, a low α1 neither slows the belt nor blocks rises', () => {
+  const steps = [runStep({ hr: { lo: 135, hi: 150, mode: 'target' }, zone: 2, duration: 900 })];
+  const h = startSession({ steps, hrOn: true, hrOnly: true });
+  h.run(400, { hr: 125, alpha1: 0.5 });
+  assert.equal(h.session.alphaGuard, false);
+  assert.equal(h.session.stats.alphaGuards, 0);
+  assert.ok(h.speeds().at(-1).speed > 9, `HR under the range still raises speed: ${JSON.stringify(h.speeds())}`);
 });
 
 test('flow (#10): the α1 guard turns off only once the median α1 of a minute is above 0.80', () => {
@@ -151,13 +161,13 @@ test('csv (#10): step, HR range, HR adjustment and the reason of each change', (
   const h = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
   h.run(80, { hr: 160 });
   const csv = samplesToCsv(h.session.samples).split('\n');
-  assert.match(csv[0], /,step,hr_lo,hr_hi,hr_adjust,reason,power_w,cadence_rpm,target_w$/);
+  assert.match(csv[0], /,step,hr_lo,hr_hi,hr_adjust,reason,power_w,cadence_rpm,target_w,intensity_pct$/);
   const changed = csv.filter((l) => /aiming at/.test(l));
   assert.equal(changed.length, 1);
-  assert.match(changed[0], /,1,135,150,-0\.5,"?HR → \d+, aiming at 141"?,,,$/);
+  assert.match(changed[0], /,1,135,150,-0\.5,"?HR → \d+, aiming at 141"?,,,,100$/);
 });
 
-test('flow: at the end the belt slows down to a walk, 0.5 km/h every 2 s, holds 5 s, then pauses', () => {
+test('flow: at the end the belt slows down to its lowest speed, 0.5 km/h every 2 s, holds 3 s, then pauses', () => {
   const h = startSession({ steps: [runStep({ duration: 30, speedStart: 6, speedEnd: 6 })] });
   h.run(31, { speed: 6 });
   assert.equal(h.session.state, 'done');
@@ -166,13 +176,13 @@ test('flow: at the end the belt slows down to a walk, 0.5 km/h every 2 s, holds 
   const t0 = h.sent.length;
   h.run(30, { speed: 6 });                                // the speed reading lags: it does not matter
   const after = h.sent.slice(t0 - 1);
-  assert.deepEqual(after.filter((x) => x.speed != null).map((x) => x.speed), [5.5, 5, 4.5, 4, 3.5, 3]);
+  assert.deepEqual(after.filter((x) => x.speed != null).map((x) => x.speed), [5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.8]);
   assert.ok(after.at(-1).pause, 'then it pauses');
   assert.equal(h.sent.filter((x) => x.pause).length, 1);
 
-  // A slow belt (a walk) pauses at once
-  const walk = startSession({ steps: [runStep({ duration: 20, speedStart: 3, speedEnd: 3 })] });
-  walk.run(21, { speed: 3 });
+  // A belt already at its lowest speed pauses at once
+  const walk = startSession({ steps: [runStep({ duration: 20, speedStart: 0.8, speedEnd: 0.8 })] });
+  walk.run(21, { speed: 0.8 });
   assert.ok(walk.sent.at(-1).pause);
 });
 
@@ -190,6 +200,86 @@ test('flow: the slow-down stops if the belt is paused from the console, and the 
   const n = c.sent.length;
   c.run(30, { speed: 9 });
   assert.equal(c.sent.length, n, 'and the slow-down is over');
+});
+
+const search = (o = {}) => runStep({ hasTarget: false, speedStart: null, speedEnd: null, duration: 1800, hr: { lo: 146, hi: 153, mode: 'target' }, ...o });
+const belt = (h, from) => () => h.speeds().at(-1)?.speed ?? from;
+
+test('flow: an HR step with no planned speed starts from the belt and rises 0.5 km/h every 30 s while far under the aim', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  assert.equal(h.runner.searching(h.session.steps[0]), true);
+  h.run(180, { speed: belt(h, 2), hr: 100 });
+  const sent = h.speeds();
+  assert.equal(sent[0].speed, 2.5, 'from the belt, not from a plan');
+  assert.ok(sent[0].at >= 45 && sent[0].at < 60, 'after the grace');
+  assert.ok(sent.every((x, i) => !i || x.at - sent[i - 1].at >= 30));
+  assert.ok(sent.every((x, i) => !i || Math.abs(x.speed - sent[i - 1].speed - 0.5) < 1e-9));
+  assert.equal(h.session.samples.at(-1).target, sent.at(-1).speed);
+});
+
+test('flow: the search goes on rising while HR does not, up to its ceiling, past the +1.5 km/h of a planned step', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(1200, { speed: belt(h, 2), hr: 100 });
+  assert.equal(h.speeds().at(-1).speed, 12);
+  assert.equal(h.session.hrAdjust, 10);
+});
+
+test('flow: near the aim the search is careful: +0.2 km/h, 60 s apart, not while HR climbs; above it, speed comes down', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(240, { speed: belt(h, 6), hr: 135 });                // 14 under the aim (149), steady
+  const near = h.speeds();
+  assert.ok(near.length >= 2);
+  assert.ok(near.every((x, i) => (i ? x.speed - near[i - 1].speed : x.speed - 6) < 0.21));
+  assert.ok(near.every((x, i) => !i || x.at - near[i - 1].at >= 60));
+
+  const climbing = startSession({ steps: [search()], hrOn: true });
+  climbing.run(240, { speed: belt(climbing, 6), hr: (t) => 115 + t * 0.1 }); // rising 6 bpm/min, projected within 20 of the aim from ~3 min
+  const late = climbing.speeds().filter((x) => x.at > 200);
+  assert.equal(late.length, 0, 'no rise while HR is still climbing near the aim');
+
+  const high = startSession({ steps: [search()], hrOn: true });
+  high.run(120, { speed: belt(high, 9), hr: 165 });
+  assert.ok(high.speeds().at(-1).speed < 9);
+});
+
+test('flow: the search moves on from a speed changed on the console, stops with no HR, and the α1 guard still blocks rises', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(60, { speed: belt(h, 2), hr: 100 });
+  live.console.targetSpeed = 5;                              // the athlete raised it on the console
+  h.run(40, { speed: 5, hr: 100 });
+  live.console.targetSpeed = undefined;
+  assert.equal(h.speeds().at(-1).speed, 5.5);
+
+  const noHr = startSession({ steps: [search()], hrOn: true });
+  noHr.run(300, { speed: 2, hr: null });
+  assert.equal(noHr.speeds().length, 0);
+
+  const guard = startSession({ steps: [search({ zone: 2 })], hrOn: true });
+  guard.run(180, { speed: belt(guard, 6), hr: 120, alpha1: 1 });
+  const n = guard.speeds().length;
+  guard.run(300, { speed: belt(guard, 6), hr: 120, alpha1: 0.5 });
+  const after = guard.speeds().slice(n);
+  const top = guard.speeds()[n - 1]?.speed;
+  assert.ok(after.filter((x) => x.at > 300).every((x) => x.speed <= top), 'no rises with α1 low');
+});
+
+test('flow: after a restart the speed the search found goes again; without HR on, or with a planned speed, nothing searches', () => {
+  const h = startSession({ steps: [search()], hrOn: true });
+  h.run(120, { speed: belt(h, 4), hr: 100 });
+  const found = h.speeds().at(-1).speed;
+  h.run(5, { speed: 0, hr: 100 });
+  assert.equal(h.session.state, 'paused');
+  const n = h.sent.length;
+  h.run(1, { speed: 2, hr: 100 });
+  assert.equal(h.session.state, 'running');
+  assert.equal(h.sent.slice(n).find((x) => x.speed != null).speed, found);
+
+  const off = startSession({ steps: [search()], hrOn: false });
+  off.run(300, { speed: 2, hr: 100 });
+  assert.equal(off.speeds().length, 0);
+
+  const planned = startSession({ steps: [runStep({ hr: { lo: 146, hi: 153, mode: 'target' } })], hrOn: true });
+  assert.equal(planned.runner.searching(planned.session.steps[0]), false);
 });
 
 test('flow: the real treadmill simulator drives a session', async () => {
@@ -213,5 +303,165 @@ test('flow: the real treadmill simulator drives a session', async () => {
 test('csv: ride samples (no incline) export', () => {
   const csv = samplesToCsv([{ elapsed: 1, distance: 8, speed: 30, power: 200, cadence: 90, hr: 120, target: 200 }]);
   // A ride: no pace, incline nor target speed; power, cadence and the target in watts at the end
-  assert.match(csv.split('\n')[1], /^1,30\.00,,,,120,8\.0,,,,,,,,200,90,200$/);
+  assert.match(csv.split('\n')[1], /^1,30\.00,,,,120,8\.0,,,,,,,,200,90,200,$/);
+});
+
+const Z1 = { lo: 92, hi: 134, mode: 'target' };
+
+test('flow (2026-11-04): a Z1 step leaves speed alone while HR is in range, and only its top slows the belt', () => {
+  const recovery = startSession({ steps: [runStep({ hr: Z1, zone: 1, speedStart: 6.8, speedEnd: 6.8, duration: 120 }), runStep({ duration: 60 })], hrOn: true });
+  recovery.run(115, { speed: 6.8, hr: (t) => 132 - t / 10 });          // falling from the effort, in range
+  assert.ok(recovery.speeds().every((s) => s.speed === 6.8), JSON.stringify(recovery.speeds()));
+
+  const over = startSession({ steps: [runStep({ hr: Z1, zone: 1, speedStart: 6.8, speedEnd: 6.8, duration: 900 })], hrOn: true });
+  over.run(100, { speed: 6.8, hr: 142 });
+  assert.ok(over.speeds().at(-1).speed < 6.8, 'above the top of Z1 it comes down');
+  over.run(400, { speed: 6.8, hr: 118 });
+  assert.equal(over.speeds().at(-1).speed, 6.8, 'and gives it back, never above the plan');
+});
+
+test('flow: a Z1 step with no planned speed still searches for it', () => {
+  const h = startSession({ steps: [runStep({ hr: Z1, zone: 1, hasTarget: false, speedStart: null, speedEnd: null, duration: 300 })], hrOn: true });
+  h.run(150, { speed: 3, hr: 80 });
+  assert.ok(h.session.hrAdjust > 0, 'far under the aim it searches');
+});
+
+const reps = (o = {}) => [
+  runStep({ hr: Z2, zone: 2, speedStart: 8, speedEnd: 8, duration: 180, ...o }),
+  runStep({ hr: Z1, zone: 1, speedStart: 6.8, speedEnd: 6.8, duration: 120, ...o }),
+];
+const speedAt = (h, at) => h.speeds().filter((s) => s.at <= at).at(-1).speed;
+
+test('flow (2026-11-04): each repetition starts where the last one like it ended', () => {
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true, hrOnly: true });
+  h.run(179, { speed: 8, hr: 125 });
+  const ended = speedAt(h, 179);
+  assert.ok(ended > 8, `HR under Z2 raised it: ${ended}`);
+  h.run(120, { speed: 6.8, hr: 125 });                 // the recovery, in range: its own plan
+  assert.equal(speedAt(h, 298), 6.8);
+  h.run(3, { speed: ended, hr: 125 });
+  assert.equal(speedAt(h, 302), ended, 'the second Z2 starts at the speed of the first');
+  assert.equal(h.session.hrAdjust, Math.round((ended - 8) * 10) / 10);
+});
+
+test('flow: a Z1 repetition also carries its speed, and it can come back down or up', () => {
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true, hrOnly: true });
+  h.run(180, { speed: 8, hr: 142 });
+  h.run(119, { speed: 6.8, hr: 145 });                 // recovery above its top
+  const ended = speedAt(h, 298);
+  assert.ok(ended < 6.8, `${ended}`);
+  h.run(180, { speed: 8, hr: 142 });
+  h.run(3, { speed: ended, hr: 145 });
+  assert.equal(speedAt(h, 482), ended);
+});
+
+test('flow: the manual change is carried too, and a different step is not touched', () => {
+  const steps = [...reps(), runStep({ hr: { lo: 151, hi: 158, mode: 'target' }, zone: 3, speedStart: 9, speedEnd: 9, duration: 60 }), ...reps()];
+  const h = startSession({ steps, hrOn: true, hrOnly: true });
+  h.run(10, { speed: 8, hr: 141 });
+  h.session.adjust = 0.5;                              // what + does
+  h.runner.pushTarget();
+  assert.equal(speedAt(h, 11), 8.5);
+  h.run(170, { speed: 8.5, hr: 141 });
+  h.run(122, { speed: 6.8, hr: 120 });
+  assert.equal(h.session.adjust, 0, 'other steps keep their own plan');
+  assert.equal(speedAt(h, 302), 9);
+  h.run(60, { speed: 9, hr: 155 });
+  assert.equal(h.session.adjust, 0.5);
+  assert.equal(h.speeds().at(-1).speed, 8.5);
+});
+
+test('flow: a rise is not carried while the α1 guard is on', () => {
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true });
+  h.run(100, { speed: 8, hr: 125 });
+  const up = h.session.hrAdjust;
+  assert.ok(up > 0);
+  h.run(200, { speed: 8, hr: 125 });
+  h.session.alphaGuard = true;
+  h.runner.applyStep(2);
+  assert.equal(h.session.hrAdjust, 0);
+});
+
+test('flow: ramps and cool-downs start from their plan, and a search starts at the speed found', () => {
+  const ramp = startSession({ steps: [runStep({ hr: Z2, zone: 2, ramp: true, speedStart: 8, speedEnd: 9, duration: 120 }), runStep({ hr: Z2, zone: 2, ramp: true, speedStart: 8, speedEnd: 9, duration: 120 })], hrOn: true });
+  ramp.run(121, { speed: 8.5, hr: 120 });
+  assert.equal(ramp.session.hrAdjust, 0);
+
+  const one = (lo, hi) => runStep({ hasTarget: false, speedStart: null, speedEnd: null, duration: 180, zone: 1, hr: { lo, hi, mode: 'target' } });
+  const h = startSession({ steps: [one(135, 150), one(92, 134), one(135, 150)], hrOn: true, hrOnly: true });
+  h.run(179, { speed: 5, hr: 90 });
+  const found = h.session.target;
+  assert.ok(found > 5);
+  h.run(180, { speed: found, hr: 125 });
+  h.run(3, { speed: found, hr: 125 });
+  assert.equal(h.session.target, found);
+  assert.equal(h.sent.filter((x) => x.speed != null).at(-1).speed, found);
+});
+
+test('flow (#50): HR lost holds the target, tells after 10 s, goes back to the plan after 60 s, and waits its grace when it returns', () => {
+  const cues = [];
+  const off = runner.events.on('cue', (c) => cues.push(c.state ?? c.kind));
+  const h = startSession({ steps: [runStep({ hr: Z2, speedStart: 8, speedEnd: 8, duration: 900 })], hrOn: true, hrOnly: true });
+  h.run(130, { speed: 8, hr: 125 });
+  const up = h.session.hrAdjust;
+  assert.ok(up > 0);
+  const moves = h.speeds().length;
+  h.run(9, { speed: 8, hr: null });
+  assert.equal(h.session.hrLostTold, false);
+  h.run(3, { speed: 8, hr: null });
+  assert.equal(h.session.hrLostTold, true);
+  assert.ok(cues.includes('hr-lost'));
+  assert.equal(h.session.hrAdjust, up, 'held');
+  assert.equal(h.speeds().length, moves);
+  h.run(50, { speed: 8, hr: null });
+  assert.equal(h.session.hrAdjust, 0);
+  assert.equal(h.speeds().at(-1).speed, 8, 'the plan');
+  assert.ok(cues.includes('hr-plan'));
+  const afterPlan = h.speeds().length;
+  h.run(40, { speed: 8, hr: 125 });
+  assert.ok(cues.includes('hr-back'));
+  assert.equal(h.speeds().length, afterPlan, 'nothing during the grace');
+  h.run(100, { speed: 8, hr: 125 });
+  assert.ok(h.speeds().length > afterPlan, 'then control resumes');
+  off?.();
+});
+
+test('flow (#50): no alarm for a session that never had HR, and a step that lost HR teaches nothing', () => {
+  const none = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
+  none.run(100, { hr: null });
+  assert.equal(none.session.hrLostAt, null);
+
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true, hrOnly: true });
+  h.run(100, { speed: 8, hr: 125 });
+  const up = h.session.hrAdjust;
+  assert.ok(up > 0);
+  h.run(20, { speed: 8, hr: null });
+  h.run(60, { speed: 8, hr: 125 });
+  h.run(122, { speed: 6.8, hr: 125 });
+  assert.equal(h.session.stepIdx, 2);
+  assert.equal(h.session.hrAdjust, 0, 'the plan again');
+});
+
+test('hrNow: a strap with RR must be sending good beats; other sources are believed', () => {
+  const save = { ...live };
+  const saveRr = { ...rrState };
+  const now = 1_000_000;
+  const beats = (rr) => rr.map((v, i) => ({ t: now - 8000 + i * 500, rr: v }));
+  live.hr = 140;
+  live.hrSource = 'console';
+  assert.equal(hrNow(now), 140);
+  live.hrSource = 'strap';
+  Object.assign(rrState, { lastAt: 0, beats: [], contact: undefined });
+  assert.equal(hrNow(now), 140, 'a sensor without RR');
+  Object.assign(rrState, { lastAt: now - 1000, beats: beats(Array(12).fill(450)) });
+  assert.equal(hrNow(now), 140);
+  rrState.lastAt = now - 6000;
+  assert.equal(hrNow(now), null, 'RR went silent');
+  Object.assign(rrState, { lastAt: now - 1000, beats: beats([236, 478, 249, 2102, 1012, 245, 244, 448, 307, 1556]) });
+  assert.equal(hrNow(now), null, 'junk RR');
+  Object.assign(rrState, { beats: beats(Array(12).fill(450)), contact: false });
+  assert.equal(hrNow(now), null, 'the strap says no contact');
+  Object.assign(live, save);
+  Object.assign(rrState, saveRr);
+  rrState.contact = undefined;
 });

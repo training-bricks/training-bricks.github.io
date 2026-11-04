@@ -19,6 +19,9 @@ import { initLibrary } from './ui/library.js';
 import { initRide } from './ui/ride.js';
 import { initTabs, showTab } from './ui/tabs.js';
 import { initConfig } from './ui/config.js';
+import { initVoice } from './ui/voice.js';
+import { initRecovery } from './ui/recovery.js';
+import { initZoneCheck } from './ui/zone-check.js';
 import { initProfile, setProfile, loadProfileFromIntervals, renderProfile, refreshAthlete, refreshWellness } from './ui/profile.js';
 import * as app from './state.js';
 
@@ -45,6 +48,7 @@ try {
   initRun();
   initProfile();
   initConfig();
+  initVoice();
   initRide();
   initSelection();
   initWorkoutPage();
@@ -54,10 +58,12 @@ try {
   // Without a stored profile, or one from before the cycling zones: ask Intervals.icu
   if (intervals.getApiKey() && (!saved?.pacePct || (saved.source === 'intervals' && !('ride' in saved)))) loadProfileFromIntervals();
   renderProfile();
+  initZoneCheck();
   if (intervals.getApiKey() && !app.state.athlete) refreshAthlete().catch((err) => log('warn', `Intervals.icu: ${err.message}`));
   if (intervals.getApiKey()) refreshWellness().catch((err) => log('warn', `Intervals.icu wellness: ${err.message}`));
   showTab(tab || 'home');
   every(TICK_MS, tick);
+  initRecovery().catch((err) => log('warn', `Session recovery: ${err.message}`));
   updateControls();
   loadWorkouts();
   settings.remove('loadRetry');

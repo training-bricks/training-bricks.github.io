@@ -9,7 +9,8 @@
 
 import * as settings from '../lib/settings.js';
 
-const API = 'https://intervals.icu/api/v1/athlete/0';
+const ROOT = 'https://intervals.icu/api/v1';
+const API = `${ROOT}/athlete/0`;
 const RUN_TYPES = new Set(['Run', 'VirtualRun', 'TrailRun']);
 const RIDE_TYPES = new Set(['Ride', 'VirtualRide', 'GravelRide', 'MountainBikeRide']);
 
@@ -33,14 +34,14 @@ export function setApiKey(key) {
 
 let memoryKey = getApiKey();
 
-async function request(path, { method = 'GET', query, body } = {}) {
+async function request(path, { method = 'GET', query, body, json, root = API } = {}) {
   if (!memoryKey) throw new Error('missing Intervals.icu API key (Profile tab)');
-  const url = new URL(API + path);
+  const url = new URL(root + path);
   for (const [k, v] of Object.entries(query || {})) if (v != null) url.searchParams.set(k, v);
   const res = await fetch(url, {
     method,
-    body,
-    headers: { Authorization: `Basic ${btoa(`API_KEY:${memoryKey}`)}` },
+    body: json ? JSON.stringify(json) : body,
+    headers: { Authorization: `Basic ${btoa(`API_KEY:${memoryKey}`)}`, ...(json && { 'Content-Type': 'application/json' }) },
   });
   if (res.status === 401 || res.status === 403) throw new Error('Intervals.icu rejected the API key');
   const text = await res.text();
@@ -109,13 +110,18 @@ export async function getSportSettings() {
   return { run: pick(run, RUN_KEYS), ride: pick(find(RIDE_TYPES), RIDE_KEYS) };
 }
 
-/** Uploads a TCX as an activity. `meta`: name, description, external_id, paired_event_id. */
-export async function uploadTcx(tcx, meta) {
+/** Uploads a FIT file (export/fit.js) as an activity. `meta`: name, description, external_id, paired_event_id. */
+export async function uploadFit(fit, meta) {
   const form = new FormData();
-  form.append('file', new Blob([tcx], { type: 'application/vnd.garmin.tcx+xml' }), 'brickwise.tcx');
+  form.append('file', new Blob([fit], { type: 'application/octet-stream' }), 'brickwise.fit');
   return request('/activities', {
     method: 'POST',
     query: { device_name: 'Brickwise', ...meta }, // meta.device_name: the treadmill or trainer used
     body: form,
   });
+}
+
+/** Changes fields of an uploaded activity (icu_rpe, feel…). */
+export async function updateActivity(id, fields) {
+  return request(`/activity/${encodeURIComponent(id)}`, { method: 'PUT', json: fields, root: ROOT });
 }

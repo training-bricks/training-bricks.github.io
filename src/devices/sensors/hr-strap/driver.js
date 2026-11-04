@@ -1,4 +1,5 @@
 /** Standard Bluetooth heart rate strap (Heart Rate service 0x180D), shared by every device. */
+import { connectGatt } from '../../ble/gatt.js';
 
 const noop = () => {};
 
@@ -31,13 +32,15 @@ export class HeartRateStrap {
     this.device = null;
   }
 
-  async connect() {
-    this.device = await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
-    this.device.addEventListener('gattserverdisconnected', () => {
-      this.bpm = null;
-      this.onStatus('disconnected');
+  /** opts.device: the strap already chosen, to reconnect with no chooser (#37). */
+  async connect(opts = {}) {
+    this.device = opts.device ?? await navigator.bluetooth.requestDevice({ filters: [{ services: ['heart_rate'] }] });
+    const server = await connectGatt(this.device, {
+      onDisconnect: () => {
+        this.bpm = null;
+        this.onStatus('disconnected');
+      },
     });
-    const server = await this.device.gatt.connect();
     const service = await server.getPrimaryService('heart_rate');
     const ch = await service.getCharacteristic('heart_rate_measurement');
     ch.addEventListener('characteristicvaluechanged', (e) => {

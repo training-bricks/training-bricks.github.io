@@ -36,10 +36,10 @@ export function selectWorkout(key = selectedKey) {
     const z = app.zonesFor(event);
     const needsProfile = ride ? !z?.ftp : event.library && !app.state.zones?.thresholdKmh;
     const hrControl = hrControllable(event, z);
-    const { position, defaultIncline, hrAdjust } = app.state.workoutOptions;
+    const { position, defaultIncline, hrAdjust, alphaGuard } = app.state.workoutOptions;
     const hrOn = hrControl && hrAdjust;
     const steps = flattenWorkout(resolveDoc(event.workout_doc, z, event.sport), { position, defaultIncline, zones: z, hrTargets: hrOn });
-    app.setSelection({ key, event, steps, needsProfile, hrControl, hrOn });
+    app.setSelection({ key, event, steps, needsProfile, hrControl, hrOn, hrOnly: hrOn && !alphaGuard });
   } else {
     app.setSelection(null);
   }

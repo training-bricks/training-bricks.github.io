@@ -10,6 +10,7 @@
  *   onLog(direction, text)   'tx' | 'rx' | 'info' | 'warn' | 'error'
  */
 
+import { connectGatt } from '../../ble/gatt.js';
 import {
   SERVICE_UUID, WRITE_UUID, NOTIFY_UUID, INIT_SEQUENCE, INIT_DELAY_MS, POLL_CYCLE,
   POLL_INTERVAL_MS, RESPONSE_TIMEOUT_MS, WRITE_HEADER, LIMITS,
@@ -71,13 +72,16 @@ export class Exp5iTreadmill extends Treadmill {
       filters: [{ namePrefix: 'I_' }, { services: [SERVICE_UUID] }],
       optionalServices: [SERVICE_UUID],
     });
-    this.device.addEventListener('gattserverdisconnected', () => this._onDisconnected());
     this.onLog('info', `Device: ${this.device.name || '(unnamed)'}`);
 
-    const server = await this.device.gatt.connect();
+    const server = await connectGatt(this.device, { onDisconnect: () => this._onDisconnected() });
     const service = await server.getPrimaryService(SERVICE_UUID);
     this.writeChar = await service.getCharacteristic(WRITE_UUID);
     this.notifyChar = await service.getCharacteristic(NOTIFY_UUID);
+    // Reconnecting (#37): half a message from before the drop must not stick to the next one
+    this._tx = new MessageAssembler();
+    this._rx = new MessageAssembler();
+    this._pending = [];
     this.notifyChar.addEventListener('characteristicvaluechanged', (e) => this._onNotify(e));
     await this.notifyChar.startNotifications();
 
@@ -168,7 +172,8 @@ export class Exp5iTreadmill extends Treadmill {
 
   async _pollLoop() {
     let slot = 0;
-    while (this.running) {
+    const loop = (this._pollId = (this._pollId ?? 0) + 1); // a reconnection starts another: this one ends
+    while (this.running && loop === this._pollId) {
       const t0 = performance.now();
       const step = POLL_CYCLE[slot];
       try {

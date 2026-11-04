@@ -35,6 +35,9 @@
     </section>
   </div>
 
+  <!-- HR zones that disagree with VT1 (src/ui/zone-check.js) -->
+  <div id="pZoneCheck" class="zone-checks"></div>
+
   <bw-zone-table class="card hidden" id="pRunZones" sport="run" heading="profile.runningZones"></bw-zone-table>
   <bw-zone-table class="card hidden" id="pRideZones" sport="ride" heading="profile.cyclingZones"></bw-zone-table>
 
@@ -47,7 +50,8 @@
       </table>
     </div>
     <div class="note mt-8" data-i18n="profile.testsHelp">Pace is the flat equivalent of speed and incline. * extrapolated: α1 did not quite reach 0.5. With Intervals.icu, also update its running settings, or Refresh will bring its values back.</div>
-    <div class="row mt-12"><button id="pTestApply">Use VT2 as LTHR and threshold pace</button></div>
+    <div class="note mt-8 hidden" id="pTestsRideHelp" data-i18n="profile.testsHelpRide">On the bike, VT2 replaces your LTHR and indoor FTP in Brickwise only. Intervals.icu keeps its cycling settings: update them there too, or Refresh will bring its values back. VT2 is an estimate of FTP, not a test of it.</div>
+    <div class="row mt-12"><button id="pTestApply">Use VT2 as LTHR and threshold pace</button><button id="pTestApplyRide" class="hidden"></button></div>
   </section>
 
   <!-- Steady aerobic runs and rides (#4): Pa:HR / Pw:HR decoupling and VT1 from α1, saved at the end of each session -->

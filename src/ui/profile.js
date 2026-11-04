@@ -9,11 +9,11 @@ import * as settings from '../lib/settings.js';
 import { formatDate } from '../i18n/format.js';
 import * as app from '../state.js';
 import { formatPace } from '../workouts/steps.js';
-import { profileFromIntervals, rideFromIntervals, DEFAULT_PACE_PCT, DEFAULT_HR_PCT } from '../physiology/zones.js';
+import { profileFromIntervals, rideFromIntervals, rideWithVt2, DEFAULT_PACE_PCT, DEFAULT_HR_PCT } from '../physiology/zones.js';
 import * as intervals from '../services/intervals.js';
 import { log } from './debug.js';
 import { loadWorkouts } from './home.js';
-import { loadTests, vtText } from '../session/test-history.js';
+import { loadTests, vtText, lastWithVt2 } from '../session/test-history.js';
 import { loadRuns, decouplingText, decouplingLabel, vt1Text } from '../session/run-history.js';
 import { vt1Trend } from '../physiology/aerobic.js';
 import { events as sessionEvents } from '../session/runner.js';
@@ -171,7 +171,12 @@ export function renderTests() {
     }
     return tr;
   }));
-  const last = tests.find((t) => t.vt2);
+  const last = lastWithVt2(tests, 'run');
+  const lastRide = lastWithVt2(tests, 'ride');
+  $('pTestApplyRide').classList.toggle('hidden', !lastRide);
+  $('pTestsRideHelp').classList.toggle('hidden', !lastRide);
+  if (lastRide) $('pTestApplyRide').textContent = t('profile.useVt2Ride', { hr: lastRide.vt2.hr, w: lastRide.vt2.w });
+  $('pTestApply').classList.toggle('hidden', !last && !!lastRide);
   $('pTestApply').disabled = !last;
   $('pTestApply').textContent = last
     ? t('profile.useVt2With', { hr: last.vt2.hr, pace: formatPace(last.vt2.kmh) })
@@ -235,10 +240,18 @@ export function initProfile() {
   document.addEventListener('bw-refresh', refreshAll);
   document.addEventListener('bw-signout', signOut);
   $('pTestApply').onclick = () => {
-    const last = loadTests().find((t) => t.vt2);
+    const last = lastWithVt2(loadTests(), 'run');
     if (!last) return;
     const base = app.state.profile || { pacePct: DEFAULT_PACE_PCT, hrPct: DEFAULT_HR_PCT };
     setProfile({ ...base, thresholdKmh: last.vt2.kmh, lthr: last.vt2.hr, source: 'manual' });
     log('info', `Profile from the threshold test: LTHR ${last.vt2.hr}, threshold ${formatPace(last.vt2.kmh)}/km`);
+  };
+  // Only here: Intervals.icu keeps its cycling settings, and Refresh brings them back
+  $('pTestApplyRide').onclick = () => {
+    const last = lastWithVt2(loadTests(), 'ride');
+    if (!last) return;
+    const base = app.state.profile || { pacePct: DEFAULT_PACE_PCT, hrPct: DEFAULT_HR_PCT };
+    setProfile({ ...base, ride: rideWithVt2(base.ride, last.vt2) });
+    log('info', `Cycling profile from the bike test: LTHR ${last.vt2.hr}, indoor FTP ${last.vt2.w} W`);
   };
 }

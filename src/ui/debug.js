@@ -4,6 +4,7 @@
  */
 
 import { $, download } from '../lib/dom.js';
+import { trimLog } from '../lib/log-buffer.js';
 import { stateRows } from './format.js';
 import { live, STALE_MS } from '../session/live.js';
 import { updateControls } from './run.js';
@@ -14,7 +15,7 @@ export const logLines = [];
 export function log(kind, text) {
   const line = `${new Date().toISOString().slice(11, 23)} ${kind.toUpperCase().padEnd(5)} ${text}`;
   logLines.push(line);
-  if (logLines.length > 20000) logLines.splice(0, 5000);
+  trimLog(logLines);
   if ((kind === 'tx' || kind === 'rx') && !$('logTraffic').checked) return;
   const el = document.createElement('div');
   el.className = kind;

@@ -4,11 +4,11 @@
  * DFA α1.
  */
 
-import { alpha1Window } from '../physiology/hrv.js';
+import { alpha1Window, cleanRr } from '../physiology/hrv.js';
 
 export const STALE_MS = 3000;       // no notifications this long → speed unknown
 
-export const live = { speed: 0, incline: 0, hr: null, hrSource: null, console: {}, info: {} };
+export const live = { speed: 0, incline: 0, hr: null, hrSource: null, console: {}, info: {}, link: {} }; // link: per kind, 'reconnecting' or 'gave-up' after a drop (#37)
 
 // RR intervals (chest strap) and DFA α1 of the last 2 minutes
 const ALPHA_EVERY_MS = 5000;
@@ -27,6 +27,22 @@ export function addRr(list, contact) {
   rrState.contact = contact;
   const keep = now - 150_000;
   while (rrState.beats.length && rrState.beats[0].t < keep) rrState.beats.shift();
+}
+
+const RR_SILENT_MS = 5000;     // a strap that sent RR and stopped: what it reports is no longer a heartbeat
+const RR_RECENT_MS = 10_000;
+const RR_JUNK_SHARE = 0.3;     // this much of the last beats unusable: bad contact
+
+/**
+ * HR, or null if it cannot be believed. A strap losing contact goes on
+ * reporting: on 2026-11-04 it read 141 and then a fixed 71 for a minute after
+ * it was taken off, with RR silent or junk. Only a strap with RR can tell.
+ */
+export function hrNow(now = Date.now()) {
+  if (live.hrSource !== 'strap' || !rrState.lastAt) return live.hr;
+  if (rrState.contact === false || now - rrState.lastAt > RR_SILENT_MS) return null;
+  const beats = rrState.beats.filter((b) => b.t > now - RR_RECENT_MS).map((b) => b.rr);
+  return beats.length >= 5 && cleanRr(beats).artifacts / beats.length >= RR_JUNK_SHARE ? null : live.hr;
 }
 
 /** Recent RR: without them α1 is not shown (optical sensor, no strap…). */

@@ -1,7 +1,7 @@
 /**
  * <bw-session-bar>: the half of the session dashboard Run and Ride share:
  * distance, time, HR and α1, and the session buttons (▶ start, ⏭ skip step,
- * ■ finish, download CSV/TCX, upload to Intervals.icu). It only draws them;
+ * ■ finish, download CSV/FIT/TCX, upload to Intervals.icu). It only draws them;
  * ui/session-screen.js fills the values and wires the buttons. Its parts
  * are found by name in .el (no ids, so both pages can hold one). The export
  * menu's popover id comes from the element's id ("<id>-export").
@@ -21,14 +21,28 @@ const template = (menuId) => `
     <button class="icon danger" data-el="finish" disabled><bw-icon name="stop"></bw-icon></button>
     <button class="icon" data-el="export" popovertarget="${menuId}" aria-label="Download the session" title="Download (when finished)" disabled data-i18n-title="run.downloadHelp" data-i18n-aria="run.download"><bw-icon name="download"></bw-icon></button>
     <button class="icon" data-el="upload" aria-label="Upload to Intervals.icu" title="Upload to Intervals.icu (when finished)" disabled><bw-icon name="upload"></bw-icon></button>
+    <button class="primary hidden" data-el="reconnect" data-i18n="session.reconnectStrap">Reconnect the strap</button>
     <div popover id="${menuId}" class="menu" data-el="menu">
       <button data-el="csv" data-i18n="run.csv">CSV (second by second)</button>
+      <button data-el="fit" data-i18n="run.fit">FIT (laps and RR, for Garmin, Strava…)</button>
       <button data-el="tcx" data-i18n="run.tcx">TCX (for Strava, Garmin…)</button>
     </div>
+  </div>
+  <div class="intensity hidden" data-el="intensityBox">
+    <span data-i18n="session.intensity">Workout intensity</span>
+    <span class="pm">
+      <button class="icon" data-el="intensityDown" aria-label="Lower intensity" title="Lower intensity" data-i18n-label="session.intensityDown">−</button>
+      <b class="num" data-el="intensity">100 %</b>
+      <button class="icon" data-el="intensityUp" aria-label="Raise intensity" title="Raise intensity" data-i18n-label="session.intensityUp">+</button>
+    </span>
+  </div>
+  <div class="session-feedback hidden" data-el="feedback">
+    <label class="field"><span data-i18n="feedback.rpe">How hard (RPE)</span><select data-el="rpe"></select></label>
+    <label class="field"><span data-i18n="feedback.feel">How you felt</span><select data-el="feel"></select></label>
   </div>`;
 
 class BwSessionBar extends HTMLElement {
-  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, tcx. */
+  /** The parts by name: dist, time, hr, hrSub, hrBox, alphaBox, alpha, alphaSub, start, skip, finish, export, upload, menu, csv, fit, tcx, intensityBox, intensity, intensityDown, intensityUp, feedback, rpe, feel. */
   el = {};
 
   connectedCallback() {
