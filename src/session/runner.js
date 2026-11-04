@@ -616,7 +616,7 @@ function alphaGuard() {
  * - Step with a pace target ('cap'): speed drops when HR is heading above
  *   the top of the matching zone; once HR is back below, it returns.
  * - Step with an HR target ('target'): speed moves to keep HR in the middle
- *   of the range (lower on aerobic steps).
+ *   of the range (lower on aerobic steps). Inside Z1 it works like a cap.
  * - Aerobic steps (Z1–Z2, not the warm-up nor the cool-down): while the α1
  *   guard is on speed never rises, and with HR above Z1 it also drops, at
  *   most every ALPHA_DROP_SPACING_S.
@@ -630,7 +630,11 @@ function adjustForHr(step) {
   if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !(step.hasTarget || step.power || search) || !live.hr) return;
   const t = session.stepElapsed;
   if (t < (step.hr.settle ?? HR_GRACE_S)) return;
-  const { lo, hi, mode } = step.hr;
+  const { lo, hi } = step.hr;
+  // A step inside Z1 is an easy one: HR may still be coming down from the effort before it,
+  // and no planned recovery reaches its aim in time. Only its top counts (with HR, not the search)
+  const easy = step.hr.mode === 'target' && !search && step.hr.by !== 'incline' && hi <= zones()?.hr[0]?.hi;
+  const mode = easy ? 'cap' : step.hr.mode;
   const recent = session.samples.filter((s) => s.elapsed > session.totalElapsed - SLOPE_WINDOW_S);
   const a = actuator();
   const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr: live.hr, z1Top: zones()?.hr[0]?.hi };

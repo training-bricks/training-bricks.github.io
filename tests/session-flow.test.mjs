@@ -304,3 +304,23 @@ test('csv: ride samples (no incline) export', () => {
   // A ride: no pace, incline nor target speed; power, cadence and the target in watts at the end
   assert.match(csv.split('\n')[1], /^1,30\.00,,,,120,8\.0,,,,,,,,200,90,200,$/);
 });
+
+const Z1 = { lo: 92, hi: 134, mode: 'target' };
+
+test('flow (2026-11-04): a Z1 step leaves speed alone while HR is in range, and only its top slows the belt', () => {
+  const recovery = startSession({ steps: [runStep({ hr: Z1, zone: 1, speedStart: 6.8, speedEnd: 6.8, duration: 120 }), runStep({ duration: 60 })], hrOn: true });
+  recovery.run(115, { speed: 6.8, hr: (t) => 132 - t / 10 });          // falling from the effort, in range
+  assert.ok(recovery.speeds().every((s) => s.speed === 6.8), JSON.stringify(recovery.speeds()));
+
+  const over = startSession({ steps: [runStep({ hr: Z1, zone: 1, speedStart: 6.8, speedEnd: 6.8, duration: 900 })], hrOn: true });
+  over.run(100, { speed: 6.8, hr: 142 });
+  assert.ok(over.speeds().at(-1).speed < 6.8, 'above the top of Z1 it comes down');
+  over.run(400, { speed: 6.8, hr: 118 });
+  assert.equal(over.speeds().at(-1).speed, 6.8, 'and gives it back, never above the plan');
+});
+
+test('flow: a Z1 step with no planned speed still searches for it', () => {
+  const h = startSession({ steps: [runStep({ hr: Z1, zone: 1, hasTarget: false, speedStart: null, speedEnd: null, duration: 300 })], hrOn: true });
+  h.run(150, { speed: 3, hr: 80 });
+  assert.ok(h.session.hrAdjust > 0, 'far under the aim it searches');
+});
