@@ -94,7 +94,7 @@ export default {
 
   // run
   'run.safety': 'Safety',
-  'run.safetyText': 'Start the belt from the console, with the safety key attached. The ■ (finish) button and the end of the workout slow the belt down to a walk and then pause it, but if anything goes wrong use STOP on the console or pull the key.',
+  'run.safetyText': 'Start the belt from the console, with the safety key attached. The ■ (finish) button and the end of the workout slow the belt down to its lowest speed and then pause it, but if anything goes wrong use STOP on the console or pull the key.',
   'run.gotIt': 'Got it',
   'run.sessionControls': 'Session controls',
   'run.distance': 'Distance',
@@ -135,12 +135,12 @@ export default {
   'run.hrFromConsole': 'Heart rate (from the console)',
   'run.hrFromStrap': 'Heart rate (from the strap)',
   'run.hrFromTrainer': 'Heart rate (from the trainer)',
-  'run.note.ended': 'Session ended. The belt slows down to a walk, then pauses: finish or resume from the console.',
+  'run.note.ended': 'Session ended. The belt slows down bit by bit, then pauses: finish or resume from the console.',
   'run.uploading': 'Uploading to Intervals.icu…',
   'run.uploaded': 'Activity uploaded.',
   'run.viewOnIntervals': 'View on Intervals.icu',
   'run.uploadFailed': 'Upload failed: {error}',
-  'run.note.complete': 'Workout complete. The belt slows down to a walk, then pauses: finish or resume from the console.',
+  'run.note.complete': 'Workout complete. The belt slows down bit by bit, then pauses: finish or resume from the console.',
   'run.wakeUnsupported': 'This browser cannot keep the screen on: turn off auto-lock in the device settings.',
   'run.wakeFailed': 'The screen may lock (battery saver?): turn off auto-lock or battery saver.',
   'run.upload': 'Upload to Intervals.icu',

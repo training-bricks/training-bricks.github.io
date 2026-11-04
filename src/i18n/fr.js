@@ -94,7 +94,7 @@ export default {
 
   // run
   'run.safety': 'Sécurité',
-  'run.safetyText': 'Démarrez le tapis depuis la console, avec la clé de sécurité en place. Le bouton ■ (terminer) et la fin de la séance ralentissent le tapis jusqu’à la marche puis le mettent en pause, mais en cas de problème utilisez STOP sur la console ou retirez la clé.',
+  'run.safetyText': 'Démarrez le tapis depuis la console, avec la clé de sécurité en place. Le bouton ■ (terminer) et la fin de la séance ralentissent le tapis jusqu’à sa vitesse minimale puis le mettent en pause, mais en cas de problème utilisez STOP sur la console ou retirez la clé.',
   'run.gotIt': 'Compris',
   'run.sessionControls': 'Commandes de la séance',
   'run.distance': 'Distance',
@@ -135,12 +135,12 @@ export default {
   'run.hrFromConsole': 'Fréquence cardiaque (de la console)',
   'run.hrFromStrap': 'Fréquence cardiaque (de la ceinture)',
   'run.hrFromTrainer': 'Fréquence cardiaque (du home trainer)',
-  'run.note.ended': 'Séance terminée. Le tapis ralentit jusqu’à la marche, puis se met en pause : terminez ou reprenez depuis la console.',
+  'run.note.ended': 'Séance terminée. Le tapis ralentit peu à peu, puis se met en pause : terminez ou reprenez depuis la console.',
   'run.uploading': 'Envoi vers Intervals.icu…',
   'run.uploaded': 'Activité envoyée.',
   'run.viewOnIntervals': 'Voir sur Intervals.icu',
   'run.uploadFailed': 'Échec de l’envoi : {error}',
-  'run.note.complete': 'Séance terminée. Le tapis ralentit jusqu’à la marche, puis se met en pause : terminez ou reprenez depuis la console.',
+  'run.note.complete': 'Séance terminée. Le tapis ralentit peu à peu, puis se met en pause : terminez ou reprenez depuis la console.',
   'run.wakeUnsupported': 'Ce navigateur ne peut pas garder l’écran allumé : désactivez le verrouillage automatique dans les réglages de l’appareil.',
   'run.wakeFailed': 'L’écran peut se verrouiller (économie d’énergie ?) : désactivez le verrouillage automatique ou l’économie d’énergie.',
   'run.upload': 'Envoyer vers Intervals.icu',

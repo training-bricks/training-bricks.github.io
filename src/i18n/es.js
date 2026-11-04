@@ -94,7 +94,7 @@ export default {
 
   // run
   'run.safety': 'Seguridad',
-  'run.safetyText': 'Arranca la banda desde la consola, con la llave de seguridad puesta. El botón ■ (terminar) y el final del entrenamiento bajan la banda a paso de caminata y luego la pausan, pero si algo sale mal usa STOP en la consola o quita la llave.',
+  'run.safetyText': 'Arranca la banda desde la consola, con la llave de seguridad puesta. El botón ■ (terminar) y el final del entrenamiento bajan la banda hasta su velocidad mínima y luego la pausan, pero si algo sale mal usa STOP en la consola o quita la llave.',
   'run.gotIt': 'Entendido',
   'run.sessionControls': 'Controles de la sesión',
   'run.distance': 'Distancia',
@@ -135,12 +135,12 @@ export default {
   'run.hrFromConsole': 'Frecuencia cardiaca (de la consola)',
   'run.hrFromStrap': 'Frecuencia cardiaca (de la banda de pecho)',
   'run.hrFromTrainer': 'Frecuencia cardiaca (del rodillo)',
-  'run.note.ended': 'Sesión terminada. La banda baja a paso de caminata y luego se pausa: termina o reanuda desde la consola.',
+  'run.note.ended': 'Sesión terminada. La banda baja poco a poco y luego se pausa: termina o reanuda desde la consola.',
   'run.uploading': 'Subiendo a Intervals.icu…',
   'run.uploaded': 'Actividad subida.',
   'run.viewOnIntervals': 'Ver en Intervals.icu',
   'run.uploadFailed': 'No se pudo subir: {error}',
-  'run.note.complete': 'Entrenamiento completado. La banda baja a paso de caminata y luego se pausa: termina o reanuda desde la consola.',
+  'run.note.complete': 'Entrenamiento completado. La banda baja poco a poco y luego se pausa: termina o reanuda desde la consola.',
   'run.wakeUnsupported': 'Este navegador no puede mantener la pantalla encendida: desactiva el bloqueo automático en los ajustes del dispositivo.',
   'run.wakeFailed': 'La pantalla puede bloquearse (¿ahorro de batería?): desactiva el bloqueo automático o el ahorro de batería.',
   'run.upload': 'Subir a Intervals.icu',

@@ -157,7 +157,7 @@ test('csv (#10): step, HR range, HR adjustment and the reason of each change', (
   assert.match(changed[0], /,1,135,150,-0\.5,"?HR → \d+, aiming at 141"?,,,,100$/);
 });
 
-test('flow: at the end the belt slows down to a walk, 0.5 km/h every 2 s, holds 5 s, then pauses', () => {
+test('flow: at the end the belt slows down to its lowest speed, 0.5 km/h every 2 s, holds 3 s, then pauses', () => {
   const h = startSession({ steps: [runStep({ duration: 30, speedStart: 6, speedEnd: 6 })] });
   h.run(31, { speed: 6 });
   assert.equal(h.session.state, 'done');
@@ -166,13 +166,13 @@ test('flow: at the end the belt slows down to a walk, 0.5 km/h every 2 s, holds 
   const t0 = h.sent.length;
   h.run(30, { speed: 6 });                                // the speed reading lags: it does not matter
   const after = h.sent.slice(t0 - 1);
-  assert.deepEqual(after.filter((x) => x.speed != null).map((x) => x.speed), [5.5, 5, 4.5, 4, 3.5, 3]);
+  assert.deepEqual(after.filter((x) => x.speed != null).map((x) => x.speed), [5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.8]);
   assert.ok(after.at(-1).pause, 'then it pauses');
   assert.equal(h.sent.filter((x) => x.pause).length, 1);
 
-  // A slow belt (a walk) pauses at once
-  const walk = startSession({ steps: [runStep({ duration: 20, speedStart: 3, speedEnd: 3 })] });
-  walk.run(21, { speed: 3 });
+  // A belt already at its lowest speed pauses at once
+  const walk = startSession({ steps: [runStep({ duration: 20, speedStart: 0.8, speedEnd: 0.8 })] });
+  walk.run(21, { speed: 0.8 });
   assert.ok(walk.sent.at(-1).pause);
 });
 

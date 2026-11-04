@@ -58,12 +58,13 @@ const NEXT_CUE_S = 10;       // the next step is announced this long before it s
 const AUTO_PAUSE_MS = 2000;  // belt (or pedals) stopped this long → pause
 
 // Ending a run: the belt never goes from running speed to 0 at once (a
-// runner can stumble and fall). It slows down step by step to a walk, holds
-// it a moment, then pauses. STOP on the console or the safety key stop it at once.
-const STOP_WALK_KMH = 3.0;   // walking speed the belt slows down to
+// runner can stumble and fall). It slows down step by step to its lowest
+// speed (a treadmill may reject 0, the EXP 5i does), holds it a moment, then
+// pauses: from 3 km/h the pause was still a jump. STOP on the console or the
+// safety key stop it at once.
 const STOP_STEP_KMH = 0.5;   // km/h per step down…
-const STOP_STEP_S = 2;       // …every this many seconds (8 km/h → 3 in 20 s)
-const STOP_HOLD_S = 5;       // at walking speed this long, then the belt pauses
+const STOP_STEP_S = 2;       // …every this many seconds (8 km/h → 0.8 in 30 s)
+const STOP_HOLD_S = 3;       // at the lowest speed this long, then the belt pauses
 
 // Speed adjustment by HR (steps carry the HR range of their zones)
 const HR_GRACE_S = 45;       // at the start of a step HR takes a while to respond
@@ -207,14 +208,15 @@ export function endSession(message) {
 
 let slowdown = null; // { device, speed, next: ms } while the belt slows down to a stop
 
-/** Starts slowing the belt down: incline to 0, then speed down to a walk (see STOP_*). */
+/** Starts slowing the belt down: incline to 0, then speed down to the lowest it takes (see STOP_*). */
 function slowDownToStop(d) {
   if (!d) return;
   const from = Math.round(live.speed * 10) / 10;
-  if (from <= STOP_WALK_KMH) { slowdown = null; d.pause(); return; }
-  slowdown = { device: d, speed: from, next: 0 };
+  const lowest = d.limits?.speedMin ?? STOP_STEP_KMH;
+  if (from <= lowest) { slowdown = null; d.pause(); return; }
+  slowdown = { device: d, speed: from, lowest, next: 0 };
   d.setTarget({ incline: d.limits?.inclineMin ?? 0 });
-  log('info', `Slowing down from ${from.toFixed(1)} km/h to ${STOP_WALK_KMH.toFixed(1)} km/h, then the belt pauses`);
+  log('info', `Slowing down from ${from.toFixed(1)} km/h to ${lowest.toFixed(1)} km/h, then the belt pauses`);
 }
 
 /** One step of the slow-down, every tick until the belt pauses. */
@@ -223,15 +225,15 @@ function slowDownStep(now) {
   // Paused or stopped from the console, or the treadmill went away: nothing left to do
   if (!s.device.connected || !POLICIES.run.moving()) { slowdown = null; return; }
   if (now < s.next) return;
-  if (s.speed > STOP_WALK_KMH) {
-    s.speed = Math.max(STOP_WALK_KMH, Math.round((s.speed - STOP_STEP_KMH) * 10) / 10);
+  if (s.speed > s.lowest) {
+    s.speed = Math.max(s.lowest, Math.round((s.speed - STOP_STEP_KMH) * 10) / 10);
     s.device.setTarget({ speed: s.speed });
-    s.next = now + (s.speed > STOP_WALK_KMH ? STOP_STEP_S : STOP_HOLD_S) * 1000;
+    s.next = now + (s.speed > s.lowest ? STOP_STEP_S : STOP_HOLD_S) * 1000;
     return;
   }
   slowdown = null;
   s.device.pause();
-  log('info', 'Walking speed reached: belt paused');
+  log('info', 'Lowest speed reached: belt paused');
 }
 
 /** Sends the ride step's watts (ramps follow the progress) plus the manual and HR adjustments, when they change. */
