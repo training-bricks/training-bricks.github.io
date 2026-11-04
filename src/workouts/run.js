@@ -24,6 +24,14 @@ function pickSpeed(pace, position) {
   return (lo + hi) / 2;
 }
 
+/** Speed for an HR zone: the pace zone with its index, at the position within it (null without one). */
+function zoneSpeed(zones, z, position) {
+  const pz = z && zones.pace[Math.min(z, zones.pace.length) - 1];
+  if (!pz) return null;
+  const hi = Number.isFinite(pz.hi) ? pz.hi : pz.lo * 1.05;
+  return pickSpeed({ start: Math.max(pz.lo, 6) / MS_TO_KMH, end: hi / MS_TO_KMH }, position);
+}
+
 /** Middle of a default pace zone, in % of threshold (Z1 ≈ 70 %). */
 function zonePct(z) {
   const i = Math.min(DEFAULT_PACE_PCT.length, Math.max(1, Math.round(z))) - 1;
@@ -79,22 +87,25 @@ export function runTargets(step, { position = 'mid', zones = null, hrTargets = f
   let zone = null;
   const hrRange = hrTargetRange(zones, step.hr, step._hr);
   if (hrRange) {
-    // lockSpeed: HR is only the step's goal; speed is left alone
-    const byIncline = step.hrBy === 'incline' && !step.lockSpeed;
-    hr = { ...hrRange, mode: step.lockSpeed ? 'info' : 'target', ...(byIncline && { by: 'incline' }) };
     const z = hrZoneOf(zones, Math.round((hrRange.lo + hrRange.hi) / 2));
     zone = z;
-    hrLabel = step.lockSpeed
-      ? t('step.hrGoal', { range: z ? `Z${z}` : `${hrRange.lo}–${hrRange.hi}` })
-      : t('step.hrRange', { range: `${hrRange.lo}–${hrRange.hi}${z ? ` (Z${z})` : ''}` }) + (byIncline ? ` ${t('step.byIncline')}` : '');
+    // A ramp climbs from the bottom of its range to the top, zone by zone
+    const zFrom = step.ramp ? hrZoneOf(zones, hrRange.lo) : z;
+    const zTo = step.ramp ? hrZoneOf(zones, hrRange.hi) : z;
     if (speedStart == null) {
       // Starting speed: the pace zone in the same position
-      const pz = z && zones.pace[Math.min(z, zones.pace.length) - 1];
-      if (pz) {
-        const hi = Number.isFinite(pz.hi) ? pz.hi : pz.lo * 1.05;
-        speedStart = speedEnd = pickSpeed({ start: Math.max(pz.lo, 6) / MS_TO_KMH, end: hi / MS_TO_KMH }, position);
-      }
+      speedStart = zoneSpeed(zones, zFrom, position);
+      speedEnd = zoneSpeed(zones, zTo, position);
     }
+    // lockSpeed: HR is only the step's goal; speed is left alone
+    const byIncline = step.hrBy === 'incline' && !step.lockSpeed;
+    // A ramp with a speed keeps its shape (HR lags behind it): HR only caps it
+    const mode = step.lockSpeed ? 'info' : step.ramp && speedStart != null && !byIncline ? 'cap' : 'target';
+    hr = { ...hrRange, mode, ...(byIncline && { by: 'incline' }) };
+    const zLabel = zFrom !== zTo ? `Z${zFrom}→Z${zTo}` : z ? `Z${z}` : '';
+    hrLabel = step.lockSpeed
+      ? t('step.hrGoal', { range: zLabel || `${hrRange.lo}–${hrRange.hi}` })
+      : t('step.hrRange', { range: `${hrRange.lo}–${hrRange.hi}${zLabel ? ` (${zLabel})` : ''}` }) + (byIncline ? ` ${t('step.byIncline')}` : '');
   } else if (speedStart != null && zones?.hr.length) {
     const pz = paceZoneOf(zones, Math.max(speedStart, speedEnd));
     zone = pz;

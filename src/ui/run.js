@@ -6,14 +6,15 @@
  */
 
 import { $ } from '../lib/dom.js';
-import { formatPace } from '../workouts/steps.js';
+import { formatPace, searchesSpeed } from '../workouts/steps.js';
 import { live } from '../session/live.js';
 import { session, events as sessionEvents, isActive, currentStep, pushTarget, pauseOnClose } from '../session/runner.js';
 import { wakeError, requestWakeLock, releaseWakeLock, initWakeLock } from '../session/wake-lock.js';
 import { beep } from '../lib/sound.js';
+import { countdownSpoken } from './voice.js';
 import { highlightSteps } from './workout.js';
 import { log, renderConsole } from './debug.js';
-import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons } from './session-screen.js';
+import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons, linkNote } from './session-screen.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
 
@@ -50,11 +51,17 @@ export function updateControls() {
     paused: t('run.note.paused'),
   };
   if (notes[state]) $('sessionNote').textContent = notes[state];
+  if (linkNote('treadmill')) $('sessionNote').textContent = linkNote('treadmill');
   if (wakeError && own && active) {
     $('sessionNote').textContent += ` ${wakeError}`;
   }
   if (state === 'idle' && app.state.selection?.needsProfile && !ride) {
     $('sessionNote').textContent = t('run.note.noThreshold');
+  }
+  // The selection does not change during a session
+  const sel = app.state.selection;
+  if (!ride && ['idle', 'armed', 'running'].includes(state) && !linkNote('treadmill') && sel?.hrOn && sel.steps.some(searchesSpeed)) {
+    $('sessionNote').textContent = t('run.note.searching');
   }
   if (state === 'idle' && ride) {
     $('sessionNote').textContent = t('run.note.bikeWorkout');
@@ -117,7 +124,7 @@ export function initRun() {
     if (append) $('sessionNote').textContent += text;
     else $('sessionNote').textContent = text;
   });
-  sessionEvents.on('beep', ({ freq, seconds }) => beep(freq, seconds));
+  sessionEvents.on('beep', ({ freq, seconds, countdown }) => { if (!(countdown && countdownSpoken())) beep(freq, seconds); });
   document.addEventListener('bw-language', () => { updateControls(); render(); updateChart(); });
   sessionEvents.on('active', (on) => (on ? requestWakeLock() : releaseWakeLock()));
   initWakeLock({ onChange: updateControls, log });

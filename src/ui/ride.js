@@ -9,7 +9,7 @@
 import { $ } from '../lib/dom.js';
 import { live } from '../session/live.js';
 import { session, events as sessionEvents, currentStep, pushPower } from '../session/runner.js';
-import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons } from './session-screen.js';
+import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons, linkNote } from './session-screen.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
 
@@ -64,6 +64,7 @@ export function updateRideControls() {
     paused: t('ride.note.paused'),
   };
   if (notes[state]) $('rideNote').textContent = notes[state];
+  if (linkNote('trainer')) $('rideNote').textContent = linkNote('trainer');
   if (state === 'idle' && run) $('rideNote').textContent = t('ride.note.runWorkout');
   if (state === 'idle' && !run && app.state.selection?.needsProfile) $('rideNote').textContent += ` ${t('ride.noFtp')}`;
 }

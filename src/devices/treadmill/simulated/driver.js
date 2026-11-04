@@ -58,8 +58,9 @@ export class SimulatedTreadmill extends Treadmill {
     this.pause();
   }
 
-  /** Debug control (the device menu): { belt: 'toggle' } presses START/STOP on the console. */
-  simulate({ belt } = {}) {
+  /** Debug control (the device menu): { belt: 'toggle' } presses START/STOP on the console; { drop: true } loses the link as Bluetooth would. */
+  simulate({ belt, drop } = {}) {
+    if (drop) { this.disconnect(); return; }
     if (belt === 'toggle') this.toggleBelt();
   }
 

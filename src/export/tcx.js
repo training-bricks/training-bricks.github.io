@@ -1,3 +1,5 @@
+import { climbedMeters } from './altitude.js';
+
 /**
  * Builds an indoor running TCX from the session samples.
  * samples: [{ t: epoch ms, distance: m, speed: km/h, hr: bpm|null, incline?: % }]
@@ -21,13 +23,11 @@ export function buildTcx(samples, { name = 'Brickwise run', sport = 'run' } = {}
   const cads = ride ? samples.map((s) => s.cadence).filter((c) => c > 0) : [];
   const avgCad = cads.length ? Math.round(cads.reduce((a, c) => a + c, 0) / cads.length) : null;
 
-  const withIncline = samples.some((s) => s.incline != null);
-  let altitude = 0;
+  const climbed = climbedMeters(samples);
   const points = samples
     .map((s, i) => {
       const hr = s.hr > 0 ? `<HeartRateBpm><Value>${Math.round(s.hr)}</Value></HeartRateBpm>` : '';
-      if (i) altitude += Math.max(0, s.distance - samples[i - 1].distance) * ((s.incline ?? 0) / 100);
-      const alt = withIncline ? `<AltitudeMeters>${altitude.toFixed(1)}</AltitudeMeters>` : '';
+      const alt = climbed ? `<AltitudeMeters>${climbed[i].toFixed(1)}</AltitudeMeters>` : '';
       const cad = ride && s.cadence != null ? `<Cadence>${Math.round(s.cadence)}</Cadence>` : '';
       const watts = ride && s.power != null ? `<ns3:Watts>${Math.round(s.power)}</ns3:Watts>` : '';
       return (

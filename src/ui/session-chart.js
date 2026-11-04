@@ -147,8 +147,9 @@ export class SessionChart {
   /** Vertical scale of each series; the left one comes from the axis (chart-axes.js). */
   _domains() {
     const hrs = this.samples.map((s) => s.hr).filter((v) => v > 0);
-    // A Z1 cap starts at 0 bpm: only real heart rates set the scale
-    for (const p of this.plan) if (p.hr) hrs.push(...[p.hr.lo, p.hr.hi].filter((v) => v > 0));
+    // The bottom of Z1 would stretch the scale for a range nobody runs in
+    const z1Floor = this.zones?.hr?.[0]?.lo;
+    for (const p of this.plan) if (p.hr) hrs.push(...[p.hr.lo, p.hr.hi].filter((v) => v > 0 && v !== z1Floor));
     const axis = leftAxisFor(this.zones, this.plan);
     const map = this._hrMap(axis.zonesOf(this.zones));
     // With aligned zones, HR shares the left scale
@@ -348,7 +349,7 @@ export class SessionChart {
         // Each band starts where the previous one ends: HR zones are integers
         // (Z1 up to 125, Z2 from 126) and that 1 bpm gap, stretched by the
         // alignment with pace, left uncolored holes
-        const zLo = i > 0 ? zones[i - 1].hi : z.lo;
+        const zLo = i > 0 ? zones[i - 1].hi : 0; // the first band reaches the bottom (under Z1 there is only Z0)
         if (z.hi < lo || zLo > hi) return;
         const y0 = clampY(yOf(Math.min(z.hi, hi)));
         const y1 = clampY(yOf(Math.max(zLo, lo)));

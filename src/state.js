@@ -6,7 +6,7 @@
  * on(name, fn) is called after each change: 'profile', 'selection',
  * 'device', 'athlete', 'wellness', 'planned', 'library', 'options'.
  */
-import { zonesFromProfile } from './physiology/zones.js';
+import { zonesFromProfile, withRestingHr } from './physiology/zones.js';
 import { createEmitter } from './lib/events.js';
 
 export const state = {
@@ -18,17 +18,26 @@ export const state = {
   wellness: null,    // latest weight, sleep, resting HR, HRV
   planned: null,     // the day's Intervals.icu workouts (null = not loaded)
   library: { entries: [], loaded: false },   // data/library.json (loaded: done, even if it failed)
-  workoutOptions: { position: 'mid', defaultIncline: 1, hrAdjust: true },  // workout page choices
+  workoutOptions: { position: 'mid', defaultIncline: 1, hrAdjust: true, alphaGuard: true },  // workout page choices
 };
 
 const emitter = createEmitter();
 export const on = emitter.on;
 const emit = emitter.emit;
 
+const restingHr = () => state.wellness?.restingHr?.value ?? state.athlete?.restingHr ?? null;
+
 export function setProfile(p) {
   state.profile = p;
-  state.zones = p ? zonesFromProfile(p) : null;
+  state.zones = p ? withRestingHr(zonesFromProfile(p), restingHr()) : null;
   emit('profile', state.profile);
+}
+
+/** Runs a change of the account; a new resting HR moves the bottom of Z1, so the zones are redone. */
+function keepingZones(change) {
+  const before = restingHr();
+  change();
+  if (restingHr() !== before && state.profile) setProfile(state.profile);
 }
 
 export function setSelection(sel) {
@@ -43,12 +52,12 @@ export function setDevice(kind, device) {
 }
 
 export function setAthlete(a) {
-  state.athlete = a;
+  keepingZones(() => { state.athlete = a; });
   emit('athlete', a);
 }
 
 export function setWellness(w) {
-  state.wellness = w;
+  keepingZones(() => { state.wellness = w; });
   emit('wellness', w);
 }
 
