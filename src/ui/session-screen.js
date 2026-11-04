@@ -131,6 +131,7 @@ export function updateSessionButtons(el, sport, { canStart, finishLabel }) {
   el.start.setAttribute('aria-label', startLabel);
   el.skip.disabled = !(own && session.steps.length && (session.state === 'running' || session.state === 'paused'));
   el.finish.disabled = !(own && active);
+  el.reconnect.classList.toggle('hidden', !(own && active && live.link.hr === 'stuck'));
   el.finish.title = finishLabel;
   el.finish.setAttribute('aria-label', finishLabel);
   const finished = own && session.state === 'done' && session.samples.length > 0;
@@ -192,6 +193,8 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     if (session.state === 'armed') { cancel(); return; }
     endSession(t(endNote)); // a treadmill slows down to a walk first; a trainer is released
   };
+
+  el.reconnect.onclick = () => document.dispatchEvent(new Event('bw-reconnect-strap')); // ui/devices.js
 
   el.intensityDown.onclick = () => setIntensity(session.intensity - 1);
   el.intensityUp.onclick = () => setIntensity(session.intensity + 1);

@@ -1,7 +1,7 @@
 // Automatic reconnection after a Bluetooth drop (#37)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { createReconnector, retryDelay, GIVE_UP_S } from '../src/devices/reconnect.js';
+import { createReconnector, retryDelay, STUCK_S } from '../src/devices/reconnect.js';
 import { getDriver } from '../src/devices/registry.js';
 import { connectGatt } from '../src/devices/ble/gatt.js';
 import { startSession, runStep } from './session/harness.mjs';
@@ -62,15 +62,19 @@ test('reconnect: retries with backoff until it comes back', async () => {
   assert.equal(clock.pending(), 0);
 });
 
-test('reconnect: gives up after 2 minutes, with nothing left scheduled', async () => {
+test('reconnect: keeps trying however long it takes, and asks for a hand once', async () => {
   const { r, clock, states, at } = setup();
   r.start();
-  await clock.advance((GIVE_UP_S + 30) * 1000);
-  assert.equal(states.at(-1), 'gave-up');
-  assert.ok(at.at(-1) >= GIVE_UP_S - 10 && at.at(-1) <= GIVE_UP_S, `last attempt at ${at.at(-1)} s`);
+  await clock.advance((STUCK_S - 10) * 1000);
+  assert.ok(!states.includes('stuck'));
+  await clock.advance(30_000);
+  assert.equal(states.filter((x) => x === 'stuck').length, 1);
   const attempts = at.length;
-  await clock.advance(60_000);
-  assert.equal(at.length, attempts);
+  await clock.advance(600_000);
+  assert.equal(states.filter((x) => x === 'stuck').length, 1);
+  assert.equal(at.length, attempts + 60, 'one attempt every 10 s');
+  assert.equal(r.active, true);
+  r.stop();
   assert.equal(clock.pending(), 0);
 });
 

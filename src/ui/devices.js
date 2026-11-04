@@ -66,9 +66,11 @@ function reconnector(kind, attempt, pill) {
     shouldRetry: () => needsDevice(kind),
     onState: (state, d) => {
       if (state === 'retrying') {
-        if (live.link[kind] !== 'reconnecting') announceLink('reconnecting');
-        live.link[kind] = 'reconnecting';
-        pill('reconnecting');
+        if (!live.link[kind]) {
+          announceLink('reconnecting');
+          live.link[kind] = 'reconnecting';
+          pill('reconnecting');
+        }
         log('warn', `${kind}: reconnecting, attempt ${d.attempt} in ${d.delay} s`);
       } else if (state === 'attempt') {
         log('info', `${kind}: reconnection attempt ${d.attempt}`);
@@ -79,11 +81,11 @@ function reconnector(kind, attempt, pill) {
         log('info', `${kind}: reconnected`);
         announceLink('back');
         deviceBack(kind);
-      } else if (state === 'gave-up') {
-        live.link[kind] = 'gave-up';
-        announceLink('gave-up');
+      } else if (state === 'stuck') {
+        live.link[kind] = 'stuck';
+        announceLink('stuck');
         pill('disconnected');
-        log('error', `${kind}: gave up reconnecting; connect it again from its menu`);
+        log('warn', `${kind}: not back yet, still trying; connecting it by hand may be needed`);
       } else {
         delete live.link[kind];
         pill('disconnected');
@@ -176,7 +178,7 @@ const hrStrap = getDriver('hr-strap').create({
   onHr: (bpm) => { live.hr = bpm; live.hrSource = 'strap'; },
   onRr: addRr,
   onStatus: (state, name) => {
-    if (state === 'ready') { hrName = name; setPill('pillHr', 'ready', t('devices.pillStatus', { device: 'HRM', state: name || t('devices.connected') })); }
+    if (state === 'ready') { hrName = name; log('info', `hr: ${name || 'strap'} connected`); setPill('pillHr', 'ready', t('devices.pillStatus', { device: 'HRM', state: name || t('devices.connected') })); }
     else {
       live.hr = null;
       live.hrSource = null;
@@ -189,6 +191,20 @@ const hrRetry = reconnector('hr', () => hrStrap.connect({ device: hrStrap.device
   if (status === 'reconnecting') setPill('pillHr', 'busy', t('devices.pillStatus', { device: 'HRM', state: t('devices.reconnecting') }));
   else setPill('pillHr', 'error', t('devices.pillStatus', { device: 'HRM', state: t('devices.disconnected') }));
 });
+
+/** Connects the strap from a click, with the chooser. If that fails during a session, the retries go on. */
+async function connectStrap() {
+  hrRetry.stop();
+  try {
+    setPill('pillHr', 'busy', t('devices.pillStatus', { device: 'HRM', state: t('devices.connecting') }));
+    await hrStrap.connect();
+  } catch (err) {
+    log('error', t('devices.pillStatus', { device: 'HRM', state: err.message }));
+    setPill('pillHr', 'error', t('devices.pillStatus', { device: 'HRM', state: t('devices.error') }));
+    hrRetry.start();
+  }
+  refreshScreens();
+}
 
 /** Draws a kind's menu from the registry and the connected device. */
 function renderMenu(kind) {
@@ -244,14 +260,11 @@ export function initDevices() {
       menu.style.left = `${Math.max(8, Math.min(r.left, window.innerWidth - menu.offsetWidth - 8))}px`;
     });
   }
-  $('pillHr').onclick = async () => {
-    if ($('pillHr').dataset.state === 'ready' || $('pillHr').dataset.state === 'busy') return;
-    try {
-      setPill('pillHr', 'busy', t('devices.pillStatus', { device: 'HRM', state: t('devices.connecting') }));
-      await hrStrap.connect();
-    } catch (err) {
-      log('error', t('devices.pillStatus', { device: 'HRM', state: err.message }));
-      setPill('pillHr', 'error', t('devices.pillStatus', { device: 'HRM', state: t('devices.error') }));
-    }
+  document.addEventListener('bw-reconnect-strap', connectStrap);
+  // While it retries the strap can be connected by hand: the chooser finds what a retry cannot
+  $('pillHr').onclick = () => {
+    const state = $('pillHr').dataset.state;
+    if (state === 'ready' || (state === 'busy' && !hrRetry.active)) return;
+    connectStrap();
   };
 }

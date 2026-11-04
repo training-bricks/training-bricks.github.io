@@ -1,12 +1,15 @@
 /**
  * Automatic reconnection after a Bluetooth drop (#37): retries with backoff
- * while the session needs the device, and gives up after a while. No DOM and
- * no Bluetooth: attempt() is whatever connects the same device again (a
- * BluetoothDevice reconnects with no chooser and no user gesture).
+ * while the session needs the device, however long it takes. No DOM and no
+ * Bluetooth: attempt() is whatever connects the same device again (a
+ * BluetoothDevice reconnects with no chooser and no user gesture). It may not
+ * get there alone: once the browser forgets a device it fails right away with
+ * "no longer in range" even with the device back (2026-11-04), and only the
+ * chooser finds it again. So after STUCK_S it asks for that, and keeps trying.
  */
 export const RETRY_DELAYS_S = [1, 2, 4, 8]; // the first attempts…
-export const RETRY_EVERY_S = 10;            // …then every this many seconds…
-export const GIVE_UP_S = 120;               // …for up to this long
+export const RETRY_EVERY_S = 10;            // …then every this many seconds
+export const STUCK_S = 30;                  // not back by now: ask the athlete for a hand
 
 /** Seconds before attempt number `n` (from 0). */
 export const retryDelay = (n) => RETRY_DELAYS_S[n] ?? RETRY_EVERY_S;
@@ -15,7 +18,7 @@ export const retryDelay = (n) => RETRY_DELAYS_S[n] ?? RETRY_EVERY_S;
  * @param opts.attempt     async () => connects; a rejection means "try again"
  * @param opts.shouldRetry () => boolean: false stops quietly (the session ended)
  * @param opts.onState     (state, detail): 'retrying' { attempt, delay }, 'attempt' { attempt },
- *                         'failed' { attempt, error }, 'back', 'gave-up', 'stopped'
+ *                         'failed' { attempt, error }, 'stuck' (once), 'back', 'stopped'
  * @param opts.clock       { now, setTimeout, clearTimeout }: tests pass a fake one
  */
 export function createReconnector({ attempt, shouldRetry = () => true, onState = () => {}, clock = globalThis }) {
@@ -25,6 +28,7 @@ export function createReconnector({ attempt, shouldRetry = () => true, onState =
   let tries = 0;
   let since = 0;
   let active = false;
+  let stuck = false;
 
   const finish = (state) => {
     active = false;
@@ -36,7 +40,6 @@ export function createReconnector({ attempt, shouldRetry = () => true, onState =
 
   const schedule = () => {
     const delay = retryDelay(tries);
-    if (now() + delay * 1000 - since > GIVE_UP_S * 1000) { finish('gave-up'); return; }
     onState('retrying', { attempt: tries + 1, delay });
     timer = clock.setTimeout(fire, delay * 1000);
   };
@@ -52,6 +55,10 @@ export function createReconnector({ attempt, shouldRetry = () => true, onState =
     } catch (error) {
       if (mine !== run) return;
       onState('failed', { attempt: tries, error });
+      if (!stuck && now() - since >= STUCK_S * 1000) {
+        stuck = true;
+        onState('stuck');
+      }
       schedule();
       return;
     }
@@ -65,6 +72,7 @@ export function createReconnector({ attempt, shouldRetry = () => true, onState =
       if (active || !shouldRetry()) return;
       active = true;
       tries = 0;
+      stuck = false;
       since = now();
       schedule();
     },
