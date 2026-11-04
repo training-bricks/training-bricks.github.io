@@ -40,7 +40,7 @@ npm start            # python3 tools/serve.py 8000; open http://localhost:8000
 - it listens on IPv4 and IPv6;
 - it disables caching.
 
-**Deploy:** the repository root is the site, with no build step. Every push to `main` runs the tests and publishes to GitHub Pages (`.github/workflows/deploy.yml`, with GitHub Actions as the Pages source). The only generated file is `version.js`, with the commit and time shown in the footer; locally it says `dev`.
+**Deploy:** the repository root is the site, with no build step. Every push to `main` runs the tests and publishes to GitHub Pages (`.github/workflows/deploy.yml`, with GitHub Actions as the Pages source). The only generated file is `version.js`, with the commit and time shown in Configuration; locally it says `dev`.
 
 **Intervals.icu:** in **Profile**, paste your API key (Intervals.icu → Settings → Developer Settings) and press **Sign in**.
 - The page calls the Intervals.icu API directly.
