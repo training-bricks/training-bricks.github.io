@@ -121,7 +121,7 @@ export const session = {
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
-    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrLastAdjust: null, hrLastRise: null, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
+    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
     stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
@@ -311,6 +311,7 @@ export function start({ sport = 'run' } = {}) {
   session.steps = app.state.selection ? app.state.selection.steps : [];
   session.event = app.state.selection ? app.state.selection.event : null;
   session.hrOn = !!app.state.selection?.hrOn;
+  session.hrOnly = !!app.state.selection?.hrOnly;
   session.policy = policyFor(session.event, sport);
   session.stats.unit = actuator().unit;
   session.state = 'armed';
@@ -586,12 +587,12 @@ function sampleControl() {
  * above ALPHA_RELEASE. A median, not "every value below": α1 near VT1 has
  * single readings above it (0.98, 0.89 among 0.6s on 2026-10-30), and each
  * one restarted the count, so the guard came on 3 min late (#10). Without α1
- * (no strap, bad signal) it is off.
+ * (no strap, bad signal), or if the athlete chose the HR range only, it is off.
  */
 function alphaGuard() {
   const a = rrActive() ? rrState.alpha?.alpha1 : null;
   const now = session.totalElapsed;
-  if (a == null || now < ALPHA_MIN_S) { session.alphaGuard = false; return false; }
+  if (session.hrOnly || a == null || now < ALPHA_MIN_S) { session.alphaGuard = false; return false; }
   const span = session.alphaGuard ? ALPHA_RELEASE_S : ALPHA_HOLD_S;
   const recent = session.samples.filter((s) => s.elapsed > now - span && s.elapsed >= ALPHA_MIN_S && s.alpha1 != null).map((s) => s.alpha1);
   if (recent.length < span * 0.75) return session.alphaGuard; // not enough of the window yet

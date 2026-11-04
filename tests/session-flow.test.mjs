@@ -110,6 +110,15 @@ test('flow (#10, 2026-10-30): HR at the Z1/Z2 boundary with low α1 no longer sa
   assert.ok(gaps(sp).every((g) => g >= 90), `α1 drops at least 90 s apart: ${gaps(sp)}`);
 });
 
+test('flow: with the HR range only, a low α1 neither slows the belt nor blocks rises', () => {
+  const steps = [runStep({ hr: { lo: 135, hi: 150, mode: 'target' }, zone: 2, duration: 900 })];
+  const h = startSession({ steps, hrOn: true, hrOnly: true });
+  h.run(400, { hr: 125, alpha1: 0.5 });
+  assert.equal(h.session.alphaGuard, false);
+  assert.equal(h.session.stats.alphaGuards, 0);
+  assert.ok(h.speeds().at(-1).speed > 9, `HR under the range still raises speed: ${JSON.stringify(h.speeds())}`);
+});
+
 test('flow (#10): the α1 guard turns off only once the median α1 of a minute is above 0.80', () => {
   const h = startSession({ steps: [runStep({ hr: Z2, duration: 1500 })], hrOn: true });
   h.run(200, { hr: 130, alpha1: 0.6 });                   // guard on from ~165 s (HR in Z1: no drop)

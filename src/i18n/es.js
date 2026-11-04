@@ -64,6 +64,8 @@ export default {
   'workout.mid': 'Medio',
   'workout.highFaster': 'Alto (más rápido)',
   'workout.baseIncline': 'Inclinación base (%)',
+  'workout.alphaGuard': 'Usar la guardia de α1',
+  'workout.alphaGuardHelp': 'Con α1 bajo, el control por FC se contiene aunque la FC esté en rango. Desactivada, solo cuenta el rango de FC',
   'workout.hrAdjustHelp': 'Los pasos largos siguen su zona de FC en lugar del ritmo',
   'workout.hrAdjust': 'Ajustar la velocidad por FC',
   'workout.step': 'Paso',

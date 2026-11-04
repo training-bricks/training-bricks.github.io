@@ -64,6 +64,8 @@ export default {
   'workout.mid': 'Mid',
   'workout.highFaster': 'High (faster)',
   'workout.baseIncline': 'Base incline (%)',
+  'workout.alphaGuard': 'Use the α1 guard',
+  'workout.alphaGuardHelp': 'With a low α1, HR control holds back even if HR is in range. Off, only the HR range counts',
   'workout.hrAdjustHelp': 'Long steps follow their HR zone instead of the pace',
   'workout.hrAdjust': 'Adjust speed by HR',
   'workout.step': 'Step',

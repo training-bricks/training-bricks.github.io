@@ -18,7 +18,7 @@ export const state = {
   wellness: null,    // latest weight, sleep, resting HR, HRV
   planned: null,     // the day's Intervals.icu workouts (null = not loaded)
   library: { entries: [], loaded: false },   // data/library.json (loaded: done, even if it failed)
-  workoutOptions: { position: 'mid', defaultIncline: 1, hrAdjust: true },  // workout page choices
+  workoutOptions: { position: 'mid', defaultIncline: 1, hrAdjust: true, alphaGuard: true },  // workout page choices
 };
 
 const emitter = createEmitter();

@@ -16,7 +16,7 @@ export const RIDE_SETTINGS = { ftp: 200, hr_zones: [130, 145, 155, 165, 175, 185
 /** A run step at a fixed speed, with optional HR range / zone / flags. */
 export const runStep = (o) => ({ label: o.label ?? 'Step', duration: 600, hasTarget: true, speedStart: 9, speedEnd: 9, incline: 1, hr: null, zone: 2, ...o });
 
-export function startSession({ steps, sport = 'run', hrOn = false, zones = true, free = false } = {}) {
+export function startSession({ steps, sport = 'run', hrOn = false, hrOnly = false, zones = true, free = false } = {}) {
   // Cycling zones for rides: FTP 200 W, HR Z1 ≤ 130, Z2 131–145
   app.setProfile(zones ? { ...profileFromIntervals(runSettings), ride: rideFromIntervals(RIDE_SETTINGS) } : null);
   const sent = [];
@@ -32,7 +32,7 @@ export function startSession({ steps, sport = 'run', hrOn = false, zones = true,
   };
   app.setDevice(kind, device);
   // free: no workout selected, the session takes its sport from the page (start({ sport }))
-  app.setSelection(free ? null : { key: 'l:test', event: { name: 'Test', sport }, steps, hrOn });
+  app.setSelection(free ? null : { key: 'l:test', event: { name: 'Test', sport }, steps, hrOn, hrOnly });
   Object.assign(rrState, { lastAt: 0, alpha: null, pending: [] });
   live.hr = null;
   let now = (origin += 1e7);

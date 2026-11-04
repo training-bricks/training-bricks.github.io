@@ -64,6 +64,8 @@ export default {
   'workout.mid': 'Milieu',
   'workout.highFaster': 'Haute (plus rapide)',
   'workout.baseIncline': 'Inclinaison de base (%)',
+  'workout.alphaGuard': 'Utiliser la garde α1',
+  'workout.alphaGuardHelp': 'Avec un α1 bas, le contrôle par la FC se retient même si la FC est dans la plage. Désactivée, seule la plage de FC compte',
   'workout.hrAdjustHelp': 'Les étapes longues suivent leur zone de FC au lieu de l’allure',
   'workout.hrAdjust': 'Ajuster la vitesse selon la FC',
   'workout.step': 'Étape',
