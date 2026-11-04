@@ -260,10 +260,11 @@ export class SessionChart {
       const label = el('text', { x: MARGIN.left - 8, y: t.y + 4, class: 'viz-axis on-band', 'text-anchor': 'end' }, svg);
       label.textContent = t.label;
     }
-    // Bike workouts have no speed by design: blocks show the power shape
+    // Bike workouts have no speed by design: blocks show the power shape.
+    // With a threshold pace, the workout's steps are what have no pace
     if (byIntensity && !this.zones?.power) {
       const msg = el('text', { x: MARGIN.left + 8, y: top + 16, class: 'viz-empty' }, svg);
-      msg.textContent = t('chart.noThreshold');
+      msg.textContent = t(this.zones?.thresholdKmh ? 'chart.noPaceTargets' : 'chart.noThreshold');
     }
 
     // Right axis: HR

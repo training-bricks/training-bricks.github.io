@@ -264,6 +264,31 @@ test('library: bike workouts in % of FTP or power zones, with their own warm-up 
   assert.ok(vo2.filter((s) => s.kind === 'Work').every((s) => s.hr?.mode !== 'target'));
 });
 
+test('#31: a run written in power zones gets the pace zone in the same position; a ride keeps the watts', () => {
+  const zones = zonesFromProfile({ ...profileFromIntervals(runSettings), thresholdKmh: 10 });
+  // "caco 9+1" (2026-10-31): Intervals.icu used power as the default target of "z1" / "z2"
+  const z = (n) => ({ power: { value: n, units: 'power_zone' }, _power: { start: 136, end: 170 } });
+  const doc = { steps: [
+    { duration: 300, warmup: true, ...z(1) },
+    { reps: 2, steps: [{ duration: 540, ...z(2) }, { duration: 60, ...z(1) }] },
+    { duration: 120, power: { start: 80, end: 90, units: '%ftp' } },
+    { duration: 60, power: { value: 250, units: 'power' } },
+    { duration: 60, power: { value: 2, units: 'power_zone' }, hr: { value: 2, units: 'hr_zone' } },
+  ] };
+  const run = flattenWorkout(resolveDoc(doc, zones, 'run'), { zones });
+  const byPace = (n) => flattenWorkout(resolveDoc({ steps: [{ duration: 540, pace: { value: n, units: 'pace_zone' } }] }, zones), { zones })[0].speedStart;
+  assert.ok(run.every((s) => s.power == null), 'no bike steps on a run');
+  assert.equal(run[1].speedStart, byPace(2));
+  assert.equal(run[0].speedStart, byPace(1));
+  assert.deepEqual([run[5].speedStart, run[5].speedEnd], [8.5, 8.5]); // 80–90 % of FTP → 85 % of a 10 km/h threshold, at the middle
+  assert.equal(run[6].hasTarget, false, 'absolute watts: a free step');
+  assert.equal(run[7].hr.mode, 'target', 'the HR target wins over the power one');
+  // The same doc as a ride (or without a sport) keeps its watts
+  const ride = flattenWorkout(resolveDoc(doc, zones, 'ride'), { zones });
+  assert.ok(ride[1].power && ride[1].speedStart == null);
+  assert.ok(flattenWorkout(resolveDoc(doc, zones), { zones })[1].power);
+});
+
 test('flattenWorkout: an HR ramp across zones ramps the speed and HR only caps it', () => {
   const zones = withRestingHr(zonesFromProfile(profileFromIntervals(runSettings)), 50);
   const doc = { steps: [

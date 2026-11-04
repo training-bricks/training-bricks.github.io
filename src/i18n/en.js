@@ -297,6 +297,7 @@ export default {
   'chart.whatColorsMean': 'What each color means',
   'chart.aria': 'Session speed, incline and HR over the planned workout',
   'chart.noThreshold': 'No threshold pace in Profile: the background only shows the workout shape',
+  'chart.noPaceTargets': 'No pace targets in this workout: the background only shows its shape',
   'chart.noWorkout': 'No workout: lines appear once the belt starts moving',
   'chart.noWorkoutRide': 'No workout: lines appear once you start pedaling',
   'chart.pace': 'pace',
