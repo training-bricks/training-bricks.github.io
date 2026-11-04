@@ -67,6 +67,7 @@ const STOP_STEP_S = 2;       // …every this many seconds (8 km/h → 0.8 in 30
 const STOP_HOLD_S = 3;       // at the lowest speed this long, then the belt pauses
 
 // Speed adjustment by HR (steps carry the HR range of their zones)
+const CONSOLE_SETTLE_S = 3;  // a command takes this long to show on the console
 const HR_GRACE_S = 45;       // at the start of a step HR takes a while to respond
 const HR_HOLD_S = 10;        // the same correction must be asked for this long in a row
 const HR_SPACING_S = 25;     // between one adjustment and the next
@@ -121,7 +122,7 @@ export const session = {
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
-    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
+    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
     stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
@@ -137,8 +138,51 @@ function stepProgress(step) {
   return 0;
 }
 
+/** The steps that repeat: HR-target steps with the same range and plan. Null for any other. */
+function repeatKey(s) {
+  if (!s?.hr || s.hr.mode !== 'target' || s.hr.by === 'incline' || s.ramp || s.warmup || s.cooldown || s.test) return null;
+  return [s.hr.lo, s.hr.hi, s.speedStart, s.power?.lo, s.power?.hi].join('|');
+}
+
+/** Changes made on the console since the last command, which the plan knows nothing about. */
+function consoleOffset() {
+  const reported = live.console.targetSpeed;
+  const settled = session.stepElapsed - (session.hrLastAdjust ?? -CONSOLE_SETTLE_S) >= CONSOLE_SETTLE_S;
+  return policy().kind === 'treadmill' && reported > 0 && session.target != null && settled ? roundTo(reported - session.target, 1) : 0;
+}
+
+/** Where a repeating step ended: the next one like it starts there (2026-11-04: each rep went back to a speed known to be too low). */
+function rememberStep() {
+  const step = currentStep();
+  const key = repeatKey(step);
+  if (!session.hrOn || !key || session.stepStarts[session.stepIdx] == null) return;
+  const off = consoleOffset();
+  session.carried[key] = { hrAdjust: session.hrAdjust, adjust: roundTo(session.adjust + off, 1), speed: session.target == null ? null : roundTo(session.target + off, 1) };
+}
+
+/** The next repetition starts where the last one ended, still under HR control. With the α1 guard on, a rise is not carried. */
+function carryInto(step) {
+  const was = session.hrOn && session.carried[repeatKey(step)];
+  if (!was) return;
+  if (searching(step)) {
+    if (was.speed == null) return;
+    session.target = was.speed;
+    log('info', `Starts at ${was.speed} km/h, where the last one like it ended`);
+    return;
+  }
+  const veto = session.alphaGuard && alphaVetoApplies({ zone: step.zone, warmup: step.warmup, cooldown: step.cooldown });
+  session.hrAdjust = veto ? Math.min(0, was.hrAdjust) : was.hrAdjust;
+  session.adjust = was.adjust;
+  const total = roundTo(session.hrAdjust + session.adjust, actuator().decimals);
+  if (total) {
+    session.reason = `from the last one like it: ${total > 0 ? '+' : ''}${total} ${actuator().unit}`;
+    log('info', `Starts ${total > 0 ? '+' : ''}${total} ${actuator().unit} over the plan, where the last one like it ended`);
+  }
+}
+
 export function applyStep(i) {
   const before = policy().kind === 'trainer' ? session.targetPower : session.target; // where the previous step ended
+  rememberStep();
   session.stepIdx = i;
   session.stepStarts[i] = session.totalElapsed;
   session.stepIntensity[i] = session.intensity;
@@ -163,6 +207,7 @@ export function applyStep(i) {
   }
   log('info', `Step ${i + 1}/${session.steps.length}: ${step.label}`);
   beep(i === 0 ? 660 : 880, 0.25);
+  carryInto(step);
   coolDownFrom(step, before);
   sendStep(true);
   changed();

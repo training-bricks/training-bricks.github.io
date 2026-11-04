@@ -324,3 +324,75 @@ test('flow: a Z1 step with no planned speed still searches for it', () => {
   h.run(150, { speed: 3, hr: 80 });
   assert.ok(h.session.hrAdjust > 0, 'far under the aim it searches');
 });
+
+const reps = (o = {}) => [
+  runStep({ hr: Z2, zone: 2, speedStart: 8, speedEnd: 8, duration: 180, ...o }),
+  runStep({ hr: Z1, zone: 1, speedStart: 6.8, speedEnd: 6.8, duration: 120, ...o }),
+];
+const speedAt = (h, at) => h.speeds().filter((s) => s.at <= at).at(-1).speed;
+
+test('flow (2026-11-04): each repetition starts where the last one like it ended', () => {
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true, hrOnly: true });
+  h.run(179, { speed: 8, hr: 125 });
+  const ended = speedAt(h, 179);
+  assert.ok(ended > 8, `HR under Z2 raised it: ${ended}`);
+  h.run(120, { speed: 6.8, hr: 125 });                 // the recovery, in range: its own plan
+  assert.equal(speedAt(h, 298), 6.8);
+  h.run(3, { speed: ended, hr: 125 });
+  assert.equal(speedAt(h, 302), ended, 'the second Z2 starts at the speed of the first');
+  assert.equal(h.session.hrAdjust, Math.round((ended - 8) * 10) / 10);
+});
+
+test('flow: a Z1 repetition also carries its speed, and it can come back down or up', () => {
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true, hrOnly: true });
+  h.run(180, { speed: 8, hr: 142 });
+  h.run(119, { speed: 6.8, hr: 145 });                 // recovery above its top
+  const ended = speedAt(h, 298);
+  assert.ok(ended < 6.8, `${ended}`);
+  h.run(180, { speed: 8, hr: 142 });
+  h.run(3, { speed: ended, hr: 145 });
+  assert.equal(speedAt(h, 482), ended);
+});
+
+test('flow: the manual change is carried too, and a different step is not touched', () => {
+  const steps = [...reps(), runStep({ hr: { lo: 151, hi: 158, mode: 'target' }, zone: 3, speedStart: 9, speedEnd: 9, duration: 60 }), ...reps()];
+  const h = startSession({ steps, hrOn: true, hrOnly: true });
+  h.run(10, { speed: 8, hr: 141 });
+  h.session.adjust = 0.5;                              // what + does
+  h.runner.pushTarget();
+  assert.equal(speedAt(h, 11), 8.5);
+  h.run(170, { speed: 8.5, hr: 141 });
+  h.run(122, { speed: 6.8, hr: 120 });
+  assert.equal(h.session.adjust, 0, 'other steps keep their own plan');
+  assert.equal(speedAt(h, 302), 9);
+  h.run(60, { speed: 9, hr: 155 });
+  assert.equal(h.session.adjust, 0.5);
+  assert.equal(h.speeds().at(-1).speed, 8.5);
+});
+
+test('flow: a rise is not carried while the α1 guard is on', () => {
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true });
+  h.run(100, { speed: 8, hr: 125 });
+  const up = h.session.hrAdjust;
+  assert.ok(up > 0);
+  h.run(200, { speed: 8, hr: 125 });
+  h.session.alphaGuard = true;
+  h.runner.applyStep(2);
+  assert.equal(h.session.hrAdjust, 0);
+});
+
+test('flow: ramps and cool-downs start from their plan, and a search starts at the speed found', () => {
+  const ramp = startSession({ steps: [runStep({ hr: Z2, zone: 2, ramp: true, speedStart: 8, speedEnd: 9, duration: 120 }), runStep({ hr: Z2, zone: 2, ramp: true, speedStart: 8, speedEnd: 9, duration: 120 })], hrOn: true });
+  ramp.run(121, { speed: 8.5, hr: 120 });
+  assert.equal(ramp.session.hrAdjust, 0);
+
+  const one = (lo, hi) => runStep({ hasTarget: false, speedStart: null, speedEnd: null, duration: 180, zone: 1, hr: { lo, hi, mode: 'target' } });
+  const h = startSession({ steps: [one(135, 150), one(92, 134), one(135, 150)], hrOn: true, hrOnly: true });
+  h.run(179, { speed: 5, hr: 90 });
+  const found = h.session.target;
+  assert.ok(found > 5);
+  h.run(180, { speed: found, hr: 125 });
+  h.run(3, { speed: found, hr: 125 });
+  assert.equal(h.session.target, found);
+  assert.equal(h.sent.filter((x) => x.speed != null).at(-1).speed, found);
+});
