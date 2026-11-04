@@ -22,6 +22,7 @@ import { initConfig } from './ui/config.js';
 import { initVoice } from './ui/voice.js';
 import { initRecovery } from './ui/recovery.js';
 import { initZoneCheck } from './ui/zone-check.js';
+import { initVersion } from './ui/version.js';
 import { initProfile, setProfile, loadProfileFromIntervals, renderProfile, refreshAthlete, refreshWellness } from './ui/profile.js';
 import * as app from './state.js';
 
@@ -43,6 +44,7 @@ try {
   const tab = settings.get('tab');
   // Wiring first, then the data
   initTabs();
+  initVersion();
   initDebug();
   initDevices();
   initRun();

@@ -15,6 +15,7 @@ export default {
   'header.hrmHelp': 'Conectar un monitor de frecuencia cardiaca (HRM)',
 
   // footer
+  'footer.published': 'Publicada el {date}',
   'footer.disclaimer': 'Brickwise es un proyecto independiente, no afiliado ni respaldado por ningún fabricante de equipos. Todas las marcas pertenecen a sus respectivos dueños.',
 
   // common

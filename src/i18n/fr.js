@@ -15,6 +15,7 @@ export default {
   'header.hrmHelp': 'Connecter un cardiofréquencemètre (HRM)',
 
   // footer
+  'footer.published': 'Publiée le {date}',
   'footer.disclaimer': 'Brickwise est un projet indépendant, sans lien ni soutien d’aucun fabricant d’équipement. Toutes les marques appartiennent à leurs propriétaires respectifs.',
 
   // common

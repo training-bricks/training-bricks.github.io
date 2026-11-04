@@ -15,6 +15,7 @@ export default {
   'header.hrmHelp': 'Connect a heart rate monitor (HRM)',
 
   // footer
+  'footer.published': 'Published on {date}',
   'footer.disclaimer': 'Brickwise is an independent project, not affiliated with or endorsed by any equipment manufacturer. All trademarks belong to their respective owners.',
 
   // common
