@@ -89,7 +89,7 @@ test('flow (#10): a short HR dip does not justify a rise; a long one does', () =
     elapsed: s, distance: s * 2.5, speed: 9, incline: 1,
     hr: s >= 200 && s < 200 + dip ? 137 : 142,
   }));
-  for (const [dip, rises] of [[8, 0], [15, 1]]) {
+  for (const [dip, rises] of [[8, 0], [15, 0], [25, 1]]) {
     const h = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
     replay(h, parseSessionCsv(samplesToCsv(series(dip))));
     const sp = h.speeds();

@@ -6,6 +6,10 @@
  *   not projected: a short dip must not ask for more speed (#10).
  * - Steps with an HR target aim at the middle of the range, or lower on
  *   aerobic steps (AEROBIC_AIM), not at its top.
+ * - It reads HR through hrTrend(): the mean of the last seconds, so a single
+ *   spike does not count, and it only projects when HR is really rising.
+ *   On 2026-11-04 both drops of the Z2 steps came from projecting a blip and
+ *   were undone 25 s later.
  * - The correction is proportional to how far off HR is (gain per bpm,
  *   between a smallest and a largest step). Rises are smaller and never
  *   happen while HR is still climbing: HR lags 1–2 min behind effort (#10).
@@ -32,6 +36,7 @@ export const SLOPE_WINDOW_S = 30; // samples used for the HR slope (20 s was too
 export const AEROBIC_AIM = 0.4;  // HR-target steps in Z1–Z2 aim at 40 % of the range (VT1 sits near the middle of Z2, #10)
 const DEADBAND = 3;              // bpm around the aim of the range that count as on target
 const RISING = 0.05;             // bpm/s (3 bpm/min): HR still climbing, so no rise yet
+const LEVEL_S = 10;              // HR for decisions: the mean of this many seconds
 const CAP_MARGIN = 5;            // pace (or power) steps give back once HR is this far below the cap
 const INCLINE_STEP = 0.5;        // % per incline correction (the treadmill's resolution)
 const SEARCH_FAR_BPM = 20;       // searching for the speed: this far under the aim, rises are bigger and do not wait for HR
@@ -65,24 +70,44 @@ export function hrSlope(samples) {
   return den ? num / den : 0;
 }
 
+const meanHr = (samples, seconds) => {
+  const last = samples.at(-1)?.elapsed;
+  const hrs = samples.filter((s) => s.hr > 0 && s.elapsed > last - seconds).map((s) => s.hr);
+  return hrs.length ? hrs.reduce((a, b) => a + b, 0) / hrs.length : null;
+};
+
+/**
+ * HR for a decision: `level`, its mean over LEVEL_S; and `rising`, whether the
+ * shorter means are above the longer ones. The slope stays on its 30 s window:
+ * over 10 s it predicts HR 30 s ahead much worse (2026-11-04: off by 7.8 bpm, 5.3 with 30 s).
+ * Null with no HR in the samples.
+ */
+export function hrTrend(samples) {
+  const level = meanHr(samples, LEVEL_S);
+  if (level == null) return null;
+  const [m3, m5] = [meanHr(samples, 3), meanHr(samples, 5)];
+  return { level: Math.round(level * 10) / 10, rising: m3 > m5 && m5 > level };
+}
+
 /**
  * Change (in the actuator's units: km/h by default, W with POWER) the HR asks
  * for right now; 0 = leave it.
  * @param {{mode: 'cap'|'target', lo: number, hi: number, hr: number, slope: number,
- *          hrAdjust: number, alphaVeto?: boolean, alphaDrop?: boolean, giveBack?: boolean, aim?: number, search?: boolean}} p
+ *          hrAdjust: number, alphaVeto?: boolean, alphaDrop?: boolean, giveBack?: boolean, aim?: number, search?: boolean, project?: boolean}} p
  *   hrAdjust: already removed (< 0) or added (> 0) in this step, in the actuator's units.
  *   alphaVeto: α1 is below VT1 on an aerobic step: no rise.
  *   alphaDrop: and speed should come down for it (see alphaDropApplies).
  *   giveBack: a capped step may return what HR took (not in the cool-down).
  *   aim: where in the range an HR target aims (0 = bottom, 0.5 = middle).
+ *   project: HR is rising, so it counts ahead with the slope (see hrTrend).
  *   search: the step has no planned speed. Far under the aim the projected HR
  *   still has to catch up with a belt that may be at a walk, so a rise does not wait.
  * @param actuator SPEED (default) or POWER
  * @returns {{delta: number, reason: string, alpha: boolean, far?: boolean}} alpha: the change is the α1 drop. far: a search rise, far under the aim.
  */
-export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = false, alphaDrop = false, giveBack = true, aim = 0.5, search = false }, actuator = SPEED) {
+export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = false, alphaDrop = false, giveBack = true, aim = 0.5, search = false, project = true }, actuator = SPEED) {
   const a = actuator;
-  const projected = hr + Math.max(0, slope) * LEAD_S;
+  const projected = hr + (project ? Math.max(0, slope) * LEAD_S : 0);
   const climbing = slope > RISING;
   let delta = 0;
   let reason = '';

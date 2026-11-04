@@ -12,7 +12,7 @@ import { createEmitter } from '../lib/events.js';
 import { targetSpeedAt, searchesSpeed } from '../workouts/steps.js';
 import { VT1, VT2 } from '../physiology/hrv.js';
 import { analyzeRamp } from '../physiology/thresholds.js';
-import { hrDecision, hrSlope, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM, SPEED, POWER, roundTo } from './hr-control.js';
+import { hrDecision, hrSlope, hrTrend, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM, SPEED, POWER, roundTo } from './hr-control.js';
 import { live, rrState, rrActive, updateAlpha, hrNow } from './live.js';
 import { addTest, testText } from './test-history.js';
 import { addRun, runText } from './run-history.js';
@@ -729,12 +729,13 @@ function adjustForHr(step) {
   const easy = step.hr.mode === 'target' && !search && step.hr.by !== 'incline' && hi <= zones()?.hr[0]?.hi;
   const mode = easy ? 'cap' : step.hr.mode;
   const recent = session.samples.filter((s) => s.elapsed > session.totalElapsed - SLOPE_WINDOW_S);
+  const trend = hrTrend(recent);
   const a = actuator();
   const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr, z1Top: zones()?.hr[0]?.hi };
   const veto = guard && alphaVetoApplies(where);
   const spaced = session.alphaLastDrop == null || session.totalElapsed - session.alphaLastDrop >= ALPHA_DROP_SPACING_S;
   const { delta, reason, alpha, far } = hrDecision({
-    mode, lo, hi, hr, slope: hrSlope(recent), hrAdjust: session.hrAdjust,
+    mode, lo, hi, hr: trend?.level ?? hr, project: trend?.rising ?? true, slope: hrSlope(recent), hrAdjust: session.hrAdjust,
     alphaVeto: veto, alphaDrop: veto && spaced && alphaDropApplies(where), giveBack: !step.cooldown,
     aim: mode === 'target' && step.zone != null && step.zone <= 2 ? AEROBIC_AIM : 0.5, search,
   }, a);
