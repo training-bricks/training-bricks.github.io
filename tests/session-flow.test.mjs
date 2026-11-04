@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import { startSession, runStep } from './session/harness.mjs';
 import { parseSessionCsv, replay } from './session/replay.mjs';
 import { samplesToCsv } from '../src/export/csv.js';
-import { live } from '../src/session/live.js';
+import { live, rrState, hrNow } from '../src/session/live.js';
+import * as runner from '../src/session/runner.js';
 
 const Z2 = { lo: 135, hi: 150, mode: 'target' };   // Z2 of the fixture profile; Z1 tops at 134
 const gaps = (list) => list.slice(1).map((x, i) => x.at - list[i].at);
@@ -395,4 +396,72 @@ test('flow: ramps and cool-downs start from their plan, and a search starts at t
   h.run(3, { speed: found, hr: 125 });
   assert.equal(h.session.target, found);
   assert.equal(h.sent.filter((x) => x.speed != null).at(-1).speed, found);
+});
+
+test('flow (#50): HR lost holds the target, tells after 10 s, goes back to the plan after 60 s, and waits its grace when it returns', () => {
+  const cues = [];
+  const off = runner.events.on('cue', (c) => cues.push(c.state ?? c.kind));
+  const h = startSession({ steps: [runStep({ hr: Z2, speedStart: 8, speedEnd: 8, duration: 900 })], hrOn: true, hrOnly: true });
+  h.run(130, { speed: 8, hr: 125 });
+  const up = h.session.hrAdjust;
+  assert.ok(up > 0);
+  const moves = h.speeds().length;
+  h.run(9, { speed: 8, hr: null });
+  assert.equal(h.session.hrLostTold, false);
+  h.run(3, { speed: 8, hr: null });
+  assert.equal(h.session.hrLostTold, true);
+  assert.ok(cues.includes('hr-lost'));
+  assert.equal(h.session.hrAdjust, up, 'held');
+  assert.equal(h.speeds().length, moves);
+  h.run(50, { speed: 8, hr: null });
+  assert.equal(h.session.hrAdjust, 0);
+  assert.equal(h.speeds().at(-1).speed, 8, 'the plan');
+  assert.ok(cues.includes('hr-plan'));
+  const afterPlan = h.speeds().length;
+  h.run(40, { speed: 8, hr: 125 });
+  assert.ok(cues.includes('hr-back'));
+  assert.equal(h.speeds().length, afterPlan, 'nothing during the grace');
+  h.run(100, { speed: 8, hr: 125 });
+  assert.ok(h.speeds().length > afterPlan, 'then control resumes');
+  off?.();
+});
+
+test('flow (#50): no alarm for a session that never had HR, and a step that lost HR teaches nothing', () => {
+  const none = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
+  none.run(100, { hr: null });
+  assert.equal(none.session.hrLostAt, null);
+
+  const h = startSession({ steps: [...reps(), ...reps()], hrOn: true, hrOnly: true });
+  h.run(100, { speed: 8, hr: 125 });
+  const up = h.session.hrAdjust;
+  assert.ok(up > 0);
+  h.run(20, { speed: 8, hr: null });
+  h.run(60, { speed: 8, hr: 125 });
+  h.run(122, { speed: 6.8, hr: 125 });
+  assert.equal(h.session.stepIdx, 2);
+  assert.equal(h.session.hrAdjust, 0, 'the plan again');
+});
+
+test('hrNow: a strap with RR must be sending good beats; other sources are believed', () => {
+  const save = { ...live };
+  const saveRr = { ...rrState };
+  const now = 1_000_000;
+  const beats = (rr) => rr.map((v, i) => ({ t: now - 8000 + i * 500, rr: v }));
+  live.hr = 140;
+  live.hrSource = 'console';
+  assert.equal(hrNow(now), 140);
+  live.hrSource = 'strap';
+  Object.assign(rrState, { lastAt: 0, beats: [], contact: undefined });
+  assert.equal(hrNow(now), 140, 'a sensor without RR');
+  Object.assign(rrState, { lastAt: now - 1000, beats: beats(Array(12).fill(450)) });
+  assert.equal(hrNow(now), 140);
+  rrState.lastAt = now - 6000;
+  assert.equal(hrNow(now), null, 'RR went silent');
+  Object.assign(rrState, { lastAt: now - 1000, beats: beats([236, 478, 249, 2102, 1012, 245, 244, 448, 307, 1556]) });
+  assert.equal(hrNow(now), null, 'junk RR');
+  Object.assign(rrState, { beats: beats(Array(12).fill(450)), contact: false });
+  assert.equal(hrNow(now), null, 'the strap says no contact');
+  Object.assign(live, save);
+  Object.assign(rrState, saveRr);
+  rrState.contact = undefined;
 });

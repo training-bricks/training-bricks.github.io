@@ -16,7 +16,7 @@ import * as intervals from '../services/intervals.js';
 import * as settings from '../lib/settings.js';
 import { uploadDescription } from '../session/summary.js';
 import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
-import { live, rrState, rrActive } from '../session/live.js';
+import { live, rrState, rrActive, hrNow } from '../session/live.js';
 import { session, events as sessionEvents, applyStep, start, endSession, cancel, setIntensity, currentStep, searching } from '../session/runner.js';
 import { intensityFactor, INTENSITY_MIN, INTENSITY_MAX } from '../session/policies.js';
 import { log } from './debug.js';
@@ -75,7 +75,8 @@ export const ownSession = (sport) => session.state !== 'idle' && session.policy?
 export function linkNote(kind) {
   if (!ownSession(kind === 'trainer' ? 'ride' : 'run') || !['running', 'paused'].includes(session.state)) return '';
   if (live.link[kind] === 'reconnecting') return t('session.reconnecting');
-  return app.state.devices[kind]?.connected ? '' : t('session.linkLost');
+  if (!app.state.devices[kind]?.connected) return t('session.linkLost');
+  return session.hrLostTold ? t(session.hrFellBack ? 'session.hrLostPlan' : 'session.hrLost') : '';
 }
 
 /** The chart of a page: the plan (or the session's) with its samples. */
@@ -92,8 +93,9 @@ export function renderCommon(el, sport) {
   el.dist.textContent = ((own ? session.totalDist : 0) / 1000).toFixed(2);
   el.time.textContent = formatDuration(own ? session.totalElapsed : 0);
   const zones = app.zonesFor(own ? session.event ?? { sport } : app.state.selection?.event ?? { sport });
-  const hz = hrZoneOf(zones, live.hr);
-  el.hr.textContent = live.hr || '--';
+  const hr = hrNow();
+  const hz = hrZoneOf(zones, hr);
+  el.hr.textContent = hr || '--';
   el.hrSub.textContent = `bpm${hz ? ` · Z${hz}` : ''}`;
   el.hrBox.title = live.hrSource === 'console' ? t('run.hrFromConsole') : live.hrSource === 'strap' ? t('run.hrFromStrap') : live.hrSource === 'trainer' ? t('run.hrFromTrainer') : t('run.heartRate');
   renderAlpha(el);

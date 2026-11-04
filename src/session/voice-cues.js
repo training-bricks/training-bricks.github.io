@@ -50,7 +50,7 @@ function hrText({ delta, unit }) {
   return t(delta < 0 ? 'voice.hrDown' : 'voice.hrUp', { value });
 }
 
-const LINK = { reconnecting: 'voice.linkLost', back: 'voice.linkBack', 'gave-up': 'voice.linkGaveUp' };
+const LINK = { 'hr-lost': 'voice.hrLost', 'hr-plan': 'voice.hrPlan', 'hr-back': 'voice.hrBack', reconnecting: 'voice.linkLost', back: 'voice.linkBack', 'gave-up': 'voice.linkGaveUp' };
 
 /** What a cue says, or null. */
 export function cueText(cue) {

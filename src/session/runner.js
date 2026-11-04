@@ -13,7 +13,7 @@ import { targetSpeedAt, searchesSpeed } from '../workouts/steps.js';
 import { VT1, VT2 } from '../physiology/hrv.js';
 import { analyzeRamp } from '../physiology/thresholds.js';
 import { hrDecision, hrSlope, inclineStep, alphaVetoApplies, alphaDropApplies, SLOPE_WINDOW_S, AEROBIC_AIM, SPEED, POWER, roundTo } from './hr-control.js';
-import { live, rrState, rrActive, updateAlpha } from './live.js';
+import { live, rrState, rrActive, updateAlpha, hrNow } from './live.js';
 import { addTest, testText } from './test-history.js';
 import { addRun, runText } from './run-history.js';
 import { aerobicSummary } from '../physiology/aerobic.js';
@@ -69,6 +69,8 @@ const STOP_HOLD_S = 3;       // at the lowest speed this long, then the belt pau
 // Speed adjustment by HR (steps carry the HR range of their zones)
 const CONSOLE_SETTLE_S = 3;  // a command takes this long to show on the console
 const HR_GRACE_S = 45;       // at the start of a step HR takes a while to respond
+const HR_LOST_TELL_S = 10;   // HR lost this long: the athlete is told
+const HR_LOST_PLAN_S = 60;   // and this long: back to the plan
 const HR_HOLD_S = 10;        // the same correction must be asked for this long in a row
 const HR_SPACING_S = 25;     // between one adjustment and the next
 const HR_RISE_SPACING_S = 60; // between two rises: HR answers a rise 1–2 min later (#10)
@@ -122,7 +124,7 @@ export const session = {
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
-    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
+    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, hrSeen: false, hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: null, hrLostInStep: false, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
     stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
@@ -155,14 +157,14 @@ function consoleOffset() {
 function rememberStep() {
   const step = currentStep();
   const key = repeatKey(step);
-  if (!session.hrOn || !key || session.stepStarts[session.stepIdx] == null) return;
+  if (!session.hrOn || !key || session.stepStarts[session.stepIdx] == null || session.hrLostInStep) return;
   const off = consoleOffset();
   session.carried[key] = { hrAdjust: session.hrAdjust, adjust: roundTo(session.adjust + off, 1), speed: session.target == null ? null : roundTo(session.target + off, 1) };
 }
 
 /** The next repetition starts where the last one ended, still under HR control. With the α1 guard on, a rise is not carried. */
 function carryInto(step) {
-  const was = session.hrOn && session.carried[repeatKey(step)];
+  const was = session.hrOn && !session.hrFellBack && session.carried[repeatKey(step)];
   if (!was) return;
   if (searching(step)) {
     if (was.speed == null) return;
@@ -195,6 +197,7 @@ export function applyStep(i) {
   session.hrWantDir = 0;
   session.hrLastAdjust = null;
   session.hrLastRise = null;
+  session.hrLostInStep = session.hrLostAt != null;
   session.warmupHrSince = null;
   session.lastBeep = null;
   session.nextCued = false;
@@ -489,7 +492,7 @@ export function tick(now = Date.now()) {
       const sample = {
         t: Math.round(now - back * 1000), elapsed: session.nextSample,
         distance: Math.max(0, session.totalDist - (pol.speed() / 3.6) * back),
-        ...pol.sample(), hr: live.hr, target: pol.kind === 'trainer' ? session.targetPower : session.target,
+        ...pol.sample(), hr: hrNow(), target: pol.kind === 'trainer' ? session.targetPower : session.target,
         ...sampleControl(),
       };
       // α1 only with RR: null = no value yet or bad signal
@@ -528,7 +531,10 @@ export function tick(now = Date.now()) {
         log('info', `HR ${live.hr} reached the top of Z1 (${zones().hr[0].hi}): warm-up done`);
         applyStep(session.stepIdx + 1);
       } else {
-        if (pol.hrSteerable) adjustForHr(step);
+        if (pol.hrSteerable) {
+          watchHr();
+          adjustForHr(step);
+        }
         if (step.ramp) sendStep();
       }
     }
@@ -656,6 +662,46 @@ function alphaGuard() {
 }
 
 /**
+ * HR lost during a session that follows it (#50): the target holds, and after
+ * HR_LOST_TELL_S the athlete is told. After HR_LOST_PLAN_S it goes back to
+ * the plan, without what HR had added or removed; with nothing planned it
+ * stays. When HR returns, control waits its grace again.
+ */
+function watchHr() {
+  if (!session.hrOn) return;
+  if (hrNow()) {
+    session.hrSeen = true;
+    if (session.hrLostAt == null) return;
+    log('info', 'HR is back: HR control resumes after its grace');
+    if (session.hrLostTold) cue({ kind: 'link', state: 'hr-back' });
+    Object.assign(session, { hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: session.totalElapsed, hrOutSince: null, hrWantDir: 0 });
+    changed();
+    return;
+  }
+  if (!session.hrSeen) return;
+  session.hrLostAt ??= session.totalElapsed;
+  session.hrLostInStep = true;
+  const lost = session.totalElapsed - session.hrLostAt;
+  if (lost >= HR_LOST_TELL_S && !session.hrLostTold) {
+    session.hrLostTold = true;
+    session.reason = 'HR lost: target held';
+    log('warn', 'HR lost: the target holds');
+    cue({ kind: 'link', state: 'hr-lost' });
+    changed();
+  }
+  if (lost >= HR_LOST_PLAN_S && !session.hrFellBack) {
+    session.hrFellBack = true;
+    if (searching(currentStep())) return;
+    session.hrAdjust = 0;
+    session.inclineAdjust = 0;
+    session.reason = 'HR lost: back to the plan';
+    log('warn', 'HR lost for a minute: back to the plan, without the HR adjustment');
+    cue({ kind: 'link', state: 'hr-plan' });
+    sendStep();
+  }
+}
+
+/**
  * Speed adjustment by HR, once per tick while a step runs (the decision is
  * in session/hr-control.js).
  * - Step with a pace target ('cap'): speed drops when HR is heading above
@@ -672,7 +718,9 @@ function alphaGuard() {
 function adjustForHr(step) {
   const guard = alphaGuard();
   const search = searching(step);
-  if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !(step.hasTarget || step.power || search) || !live.hr) return;
+  const hr = hrNow();
+  if (!session.hrOn || !step.hr || step.hr.mode === 'info' || !(step.hasTarget || step.power || search) || !hr) return;
+  if (session.hrBackAt != null && session.totalElapsed - session.hrBackAt < HR_GRACE_S) return;
   const t = session.stepElapsed;
   if (t < (step.hr.settle ?? HR_GRACE_S)) return;
   const { lo, hi } = step.hr;
@@ -682,11 +730,11 @@ function adjustForHr(step) {
   const mode = easy ? 'cap' : step.hr.mode;
   const recent = session.samples.filter((s) => s.elapsed > session.totalElapsed - SLOPE_WINDOW_S);
   const a = actuator();
-  const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr: live.hr, z1Top: zones()?.hr[0]?.hi };
+  const where = { zone: step.zone, warmup: step.warmup, cooldown: step.cooldown, hr, z1Top: zones()?.hr[0]?.hi };
   const veto = guard && alphaVetoApplies(where);
   const spaced = session.alphaLastDrop == null || session.totalElapsed - session.alphaLastDrop >= ALPHA_DROP_SPACING_S;
   const { delta, reason, alpha, far } = hrDecision({
-    mode, lo, hi, hr: live.hr, slope: hrSlope(recent), hrAdjust: session.hrAdjust,
+    mode, lo, hi, hr, slope: hrSlope(recent), hrAdjust: session.hrAdjust,
     alphaVeto: veto, alphaDrop: veto && spaced && alphaDropApplies(where), giveBack: !step.cooldown,
     aim: mode === 'target' && step.zone != null && step.zone <= 2 ? AEROBIC_AIM : 0.5, search,
   }, a);
