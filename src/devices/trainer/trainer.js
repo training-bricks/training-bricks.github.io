@@ -3,14 +3,16 @@
  * capabilities and limits, modes, and targets clamped to those limits. In
  * ERG a new power target is not sent at once: it is spread over ERG_RAMP_S
  * (ergRamp), so a big jump does not stall the legs (the ERG "spiral of
- * death"). Drivers implement the hooks _sendPower(w), _sendResistance(pct),
- * _sendSimulation(params), _sendStop() and _applyMode(mode), plus connect,
- * disconnect and connected. Readings are published as TrainerState (types.js).
+ * death"). Short efforts ask for a quick one (QUICK_RAMP_S), or the ramp
+ * would eat a good part of them. Drivers implement the hooks _sendPower(w),
+ * _sendResistance(pct), _sendSimulation(params), _sendStop() and
+ * _applyMode(mode), plus connect, disconnect and connected. Readings are published as TrainerState (types.js).
  */
 
 const noop = () => {};
 
 export const ERG_RAMP_S = 2.5;
+export const QUICK_RAMP_S = 1;
 const RAMP_EVERY_MS = 500;
 
 const clamp = (v, lo, hi) => Math.min(hi ?? Infinity, Math.max(lo ?? -Infinity, v));
@@ -44,15 +46,17 @@ export class Trainer {
     this._applyMode?.(mode);
   }
 
-  /** ERG: asks for a power (W) within the limits, reached through a short ramp. */
-  setTarget({ power } = {}) {
+  /** ERG: asks for a power (W) within the limits, reached through a short ramp (quick: at most QUICK_RAMP_S). */
+  setTarget({ power, quick = false } = {}) {
     if (power == null) return;
     const l = this.limits;
     const w = roundTo(clamp(power, l.powerMin, l.powerMax), l.powerStep);
     this.requested.power = w;
     if (this.mode !== 'erg') this.setMode('erg');
     this._cancelRamp();
-    const steps = ergRamp(this.sentPower, w, this.rampSeconds, this.rampMs);
+    // Scaled like rampSeconds, which tests shorten
+    const seconds = quick ? Math.min(this.rampSeconds, QUICK_RAMP_S * (this.rampSeconds / ERG_RAMP_S)) : this.rampSeconds;
+    const steps = ergRamp(this.sentPower, w, seconds, this.rampMs);
     const sendNext = () => {
       const v = steps.shift();
       this.sentPower = v;

@@ -37,8 +37,8 @@ export function startSession({ steps, sport = 'run', hrOn = false, hrOnly = fals
   live.hr = null;
   let now = (origin += 1e7);
 
-  const tickOnce = ({ speed = 9, cadence = 90, hr = null, alpha1, fresh = true } = {}) => {
-    now += 1000;
+  const tickOnce = ({ speed = 9, cadence = 90, hr = null, alpha1, fresh = true, ms = 1000 } = {}) => {
+    now += ms;
     if (fresh) device.state.updatedAt = now;
     live.speed = speed;
     live.incline = 1;
@@ -63,8 +63,8 @@ export function startSession({ steps, sport = 'run', hrOn = false, hrOnly = fals
     session: runner.session,
     device,
     sent,
-    /** seconds ticks; values may be functions of the session time (s). */
-    run(seconds, { speed = 9, cadence = 90, hr = null, alpha1 } = {}) {
+    /** seconds ticks (or ticks of `ms` each); values may be functions of the session time (s). */
+    run(seconds, { speed = 9, cadence = 90, hr = null, alpha1, ms = 1000 } = {}) {
       for (let i = 0; i < seconds; i++) {
         const t = runner.session.totalElapsed;
         tickOnce({
@@ -72,6 +72,7 @@ export function startSession({ steps, sport = 'run', hrOn = false, hrOnly = fals
           cadence: typeof cadence === 'function' ? cadence(t) : cadence,
           hr: typeof hr === 'function' ? hr(t) : hr,
           alpha1: typeof alpha1 === 'function' ? alpha1(t) : alpha1,
+          ms,
         });
       }
     },
