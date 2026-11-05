@@ -140,8 +140,9 @@ function stepProgress(step) {
   return 0;
 }
 
-/** The steps that repeat: HR-target steps with the same range and plan. Null for any other. */
+/** The steps that repeat: walks, and HR-target steps with the same range and plan. Null for any other. */
 function repeatKey(s) {
+  if (s?.walk) return 'walk';
   if (!s?.hr || s.hr.mode !== 'target' || s.hr.by === 'incline' || s.ramp || s.warmup || s.cooldown || s.test) return null;
   return [s.hr.lo, s.hr.hi, s.speedStart, s.power?.lo, s.power?.hi].join('|');
 }
@@ -167,14 +168,14 @@ function absorbConsole() {
 function rememberStep() {
   const step = currentStep();
   const key = repeatKey(step);
-  if (!session.hrOn || !key || session.stepStarts[session.stepIdx] == null || session.hrLostInStep) return;
+  if ((!session.hrOn && !step.walk) || !key || session.stepStarts[session.stepIdx] == null || session.hrLostInStep) return;
   const off = consoleOffset();
   session.carried[key] = { hrAdjust: session.hrAdjust, adjust: roundTo(session.adjust + off, 1), speed: session.target == null ? null : roundTo(session.target + off, 1) };
 }
 
 /** Where a step starts if the last one like it is carried, or null. With the α1 guard on, a rise is not carried. */
 function carriedFor(step) {
-  const was = session.hrOn && !session.hrFellBack && session.carried[repeatKey(step)];
+  const was = (session.hrOn || step.walk) && !session.hrFellBack && session.carried[repeatKey(step)];
   if (!was) return null;
   if (searching(step)) return was.speed == null ? null : { speed: was.speed };
   const veto = session.alphaGuard && alphaVetoApplies({ zone: step.zone, warmup: step.warmup, cooldown: step.cooldown });

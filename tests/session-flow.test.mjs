@@ -540,3 +540,16 @@ test('flow: the next-step cue announces where a repetition really starts, not th
   assert.equal(cues[0].offset, 0, 'the rest has nothing carried');
   assert.equal(cues[1].offset, ended, 'the second rep starts where the first ended');
 });
+
+test('flow: a walk changed by hand carries to the next walk, with no HR control', () => {
+  const walk = () => runStep({ label: 'Walk', walk: true, duration: 60, speedStart: 3, speedEnd: 3, zone: 1 });
+  const work = () => runStep({ duration: 60, speedStart: 8, speedEnd: 8 });
+  const h = startSession({ steps: [walk(), work(), walk(), work()] });
+  h.run(10, { speed: 3 });
+  h.session.adjust = 1.5;                                 // the + button
+  runner.pushTarget();
+  h.run(55, { speed: 4.5 });
+  assert.equal(h.speeds().at(-1).speed, 8, 'the work step keeps its plan');
+  h.run(60, { speed: 8 });
+  assert.equal(h.speeds().at(-1).speed, 4.5, 'the next walk starts where the last one ended');
+});
