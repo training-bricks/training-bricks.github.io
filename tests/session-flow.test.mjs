@@ -525,3 +525,18 @@ test('flow: a cool-down starts from a speed lowered on the console', () => {
   live.console.targetSpeed = undefined;
   assert.ok(h.speeds().at(-1).speed <= 3.2, `the cool-down asks ${h.speeds().at(-1).speed}`);
 });
+
+test('flow: the next-step cue announces where a repetition really starts, not the plan', () => {
+  const z2 = () => runStep({ duration: 180, speedStart: 8, speedEnd: 8, zone: 2, hr: { lo: 135, hi: 150, mode: 'target' } });
+  const rest = () => runStep({ label: 'Rest', duration: 60, speedStart: 6, speedEnd: 6, zone: 1 });
+  const h = startSession({ steps: [z2(), rest(), z2()], hrOn: true });
+  const cues = [];
+  runner.events.on('cue', (c) => { if (c.kind === 'next') cues.push(c); });
+  h.run(175, { speed: 8, hr: 170 });                      // HR high: the first rep ends under the plan
+  const ended = h.session.hrAdjust;
+  assert.ok(ended < 0);
+  h.run(65, { speed: 6, hr: 120 });
+  assert.equal(cues.length, 2);
+  assert.equal(cues[0].offset, 0, 'the rest has nothing carried');
+  assert.equal(cues[1].offset, ended, 'the second rep starts where the first ended');
+});

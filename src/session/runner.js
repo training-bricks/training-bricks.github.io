@@ -172,18 +172,25 @@ function rememberStep() {
   session.carried[key] = { hrAdjust: session.hrAdjust, adjust: roundTo(session.adjust + off, 1), speed: session.target == null ? null : roundTo(session.target + off, 1) };
 }
 
-/** The next repetition starts where the last one ended, still under HR control. With the α1 guard on, a rise is not carried. */
-function carryInto(step) {
+/** Where a step starts if the last one like it is carried, or null. With the α1 guard on, a rise is not carried. */
+function carriedFor(step) {
   const was = session.hrOn && !session.hrFellBack && session.carried[repeatKey(step)];
+  if (!was) return null;
+  if (searching(step)) return was.speed == null ? null : { speed: was.speed };
+  const veto = session.alphaGuard && alphaVetoApplies({ zone: step.zone, warmup: step.warmup, cooldown: step.cooldown });
+  return { hrAdjust: veto ? Math.min(0, was.hrAdjust) : was.hrAdjust, adjust: was.adjust };
+}
+
+/** The next repetition starts where the last one ended, still under HR control. */
+function carryInto(step) {
+  const was = carriedFor(step);
   if (!was) return;
-  if (searching(step)) {
-    if (was.speed == null) return;
+  if (was.speed != null) {
     session.target = was.speed;
     log('info', `Starts at ${was.speed} km/h, where the last one like it ended`);
     return;
   }
-  const veto = session.alphaGuard && alphaVetoApplies({ zone: step.zone, warmup: step.warmup, cooldown: step.cooldown });
-  session.hrAdjust = veto ? Math.min(0, was.hrAdjust) : was.hrAdjust;
+  session.hrAdjust = was.hrAdjust;
   session.adjust = was.adjust;
   const total = roundTo(session.hrAdjust + session.adjust, actuator().decimals);
   if (total) {
@@ -532,7 +539,8 @@ export function tick(now = Date.now()) {
         // Short steps go by too fast for it (and the first seconds of a step are its own)
         if (next && !session.nextCued && left <= NEXT_CUE_S && step.duration > 2 * NEXT_CUE_S) {
           session.nextCued = true;
-          cue({ kind: 'next', step: next, factor: intensityFactor(next, session.intensity) });
+          const carried = carriedFor(next);
+          cue({ kind: 'next', step: next, factor: intensityFactor(next, session.intensity), offset: carried?.speed == null ? (carried?.hrAdjust ?? 0) + (carried?.adjust ?? 0) : 0, speed: carried?.speed ?? null });
         }
         if (left <= 3 && left >= 1 && session.lastBeep !== left) {
           session.lastBeep = left;

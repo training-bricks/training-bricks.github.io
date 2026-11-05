@@ -178,6 +178,7 @@ export default {
   'voice.linkBack': 'Conexión recuperada',
   'voice.linkStuck': 'Toca para reconectar',
   'voice.test': 'Siguiente: 6 minutos a 171 vatios',
+  'voice.pace': '{pace} por kilómetro',
   'voice.minutes': { one: '{n} minuto', other: '{n} minutos', many: '{n} minutos' },
   'voice.seconds': { one: '{n} segundo', other: '{n} segundos', many: '{n} segundos' },
   'voice.meters': { one: '{n} metro', other: '{n} metros', many: '{n} metros' },

@@ -12,14 +12,14 @@ const run = { hasTarget: true, speedStart: 7.2, speedEnd: 7.2, duration: 360 };
 
 test('voice: the next step, in each language', async () => {
   assert.equal(cueText({ kind: 'next', step: ride }), 'Next: 6 minutes at 171 watts');
-  assert.equal(cueText({ kind: 'next', step: run }), 'Next: 6 minutes at 8:20');
+  assert.equal(cueText({ kind: 'next', step: run }), 'Next: 6 minutes at 8 minutes 20 per kilometer');
   assert.equal(cueText({ kind: 'next', step: ride, factor: 0.95 }), 'Next: 6 minutes at 162 watts');
   assert.equal(cueText({ kind: 'next', step: { duration: 90, power: { lo: 100, hi: 100 } } }), 'Next: 90 seconds at 100 watts');
   assert.equal(cueText({ kind: 'next', step: { distance: 500, hasTarget: false } }), 'Next: 500 meters');
   globalThis.document = { documentElement: {}, querySelectorAll: () => [], dispatchEvent() {} };
   try {
     await setLanguage('es');
-    assert.equal(cueText({ kind: 'next', step: run }), 'Siguiente: 6 minutos a 8:20');
+    assert.equal(cueText({ kind: 'next', step: run }), 'Siguiente: 6 minutos a 8 minutos 20 por kilómetro');
     assert.equal(cueText({ kind: 'next', step: ride }), 'Siguiente: 6 minutos a 171 vatios');
     assert.equal(cueText({ kind: 'hr', delta: -0.5, unit: 'km/h' }), 'Pulso alto: baja 0,5');
     assert.equal(cueText({ kind: 'paused' }), 'En pausa');
@@ -175,4 +175,14 @@ test('voice: each language gets a voice of its own, the fullest first, a little 
   assert.equal(said[1].voice, thomas);
   assert.equal(said[1].lang, 'fr-FR');
   assert.ok(said.every((u) => u.rate === 0.9));
+});
+
+test('voice: a pace is said in words, and a carried start is what gets announced', () => {
+  const run = { duration: 180, hasTarget: true, speedStart: 8 };                    // 7:30/km
+  assert.equal(cueText({ kind: 'next', step: run }), 'Next: 3 minutes at 7 minutes 30 per kilometer');
+  assert.equal(cueText({ kind: 'next', step: { ...run, speedStart: 10 } }), 'Next: 3 minutes at 6 minutes per kilometer');
+  assert.equal(cueText({ kind: 'next', step: run, offset: 2 }), 'Next: 3 minutes at 6 minutes per kilometer');
+  assert.equal(cueText({ kind: 'next', step: { duration: 180, hasTarget: false }, speed: 10 }), 'Next: 3 minutes at 6 minutes per kilometer');
+  assert.equal(cueText({ kind: 'next', step: { duration: 180, power: { lo: 150, hi: 150 } }, offset: 10 }), 'Next: 3 minutes at 160 watts');
+  assert.ok(!/\d:\d/.test(cueText({ kind: 'next', step: run })), 'no clock-like text for the voice');
 });
