@@ -5,11 +5,13 @@
  * BluetoothDevice reconnects with no chooser and no user gesture). It may not
  * get there alone: once the browser forgets a device it fails right away with
  * "no longer in range" even with the device back (2026-11-04), and only the
- * chooser finds it again. So after STUCK_S it asks for that, and keeps trying.
+ * chooser finds it again. So after STUCK_S it asks for that, whatever the
+ * attempts are doing, and keeps trying.
  */
 export const RETRY_DELAYS_S = [1, 2, 4, 8]; // the first attempts…
 export const RETRY_EVERY_S = 10;            // …then every this many seconds
 export const STUCK_S = 30;                  // not back by now: ask the athlete for a hand
+export const ATTEMPT_MAX_S = 30;            // an attempt that does not answer counts as failed
 
 /** Seconds before attempt number `n` (from 0). */
 export const retryDelay = (n) => RETRY_DELAYS_S[n] ?? RETRY_EVERY_S;
@@ -22,18 +24,19 @@ export const retryDelay = (n) => RETRY_DELAYS_S[n] ?? RETRY_EVERY_S;
  * @param opts.clock       { now, setTimeout, clearTimeout }: tests pass a fake one
  */
 export function createReconnector({ attempt, shouldRetry = () => true, onState = () => {}, clock = globalThis }) {
-  const now = clock.now ?? Date.now;
   let timer = null;
+  let stuckTimer = null;
+  let attemptTimer = null;
   let run = 0;      // a new start or a stop makes an attempt in flight stale
   let tries = 0;
-  let since = 0;
   let active = false;
-  let stuck = false;
 
   const finish = (state) => {
     active = false;
     clock.clearTimeout(timer);
-    timer = null;
+    clock.clearTimeout(stuckTimer);
+    clock.clearTimeout(attemptTimer);
+    timer = stuckTimer = attemptTimer = null;
     run += 1;
     onState(state);
   };
@@ -51,17 +54,17 @@ export function createReconnector({ attempt, shouldRetry = () => true, onState =
     tries += 1;
     onState('attempt', { attempt: tries });
     try {
-      await attempt();
+      await Promise.race([attempt(), new Promise((_, reject) => {
+        attemptTimer = clock.setTimeout(() => reject(new Error(`no answer in ${ATTEMPT_MAX_S} s`)), ATTEMPT_MAX_S * 1000);
+      })]);
     } catch (error) {
       if (mine !== run) return;
+      clock.clearTimeout(attemptTimer);
       onState('failed', { attempt: tries, error });
-      if (!stuck && now() - since >= STUCK_S * 1000) {
-        stuck = true;
-        onState('stuck');
-      }
       schedule();
       return;
     }
+    clock.clearTimeout(attemptTimer);
     if (mine === run) finish('back');
   }
 
@@ -72,8 +75,9 @@ export function createReconnector({ attempt, shouldRetry = () => true, onState =
       if (active || !shouldRetry()) return;
       active = true;
       tries = 0;
-      stuck = false;
-      since = now();
+      stuckTimer = clock.setTimeout(() => {
+        if (shouldRetry()) onState('stuck');
+      }, STUCK_S * 1000);
       schedule();
     },
     /** A manual disconnect or connect: no more retries. */

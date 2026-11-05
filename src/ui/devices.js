@@ -167,11 +167,26 @@ async function connect(kind, driverId = null) {
   } catch (err) {
     log('error', err.message);
     showStatus(kind, 'error');
+    retries[kind]?.start(); // during a session it goes on, and asks again when stuck
   }
 }
 
 /** Connects the real device of a kind, from a click (a recovered session, #36). */
 export const connectDevice = (kind) => connect(kind);
+
+/** The treadmill or trainer of a session, from the button shown when the retries are stuck (#37). */
+async function reconnectByHand(kind) {
+  await connect(kind);
+  if (app.state.devices[kind]?.connected) deviceBack(kind);
+  refreshScreens();
+}
+
+/** A recovered session used a strap: one click connects one device, so the button offers the other (#36). */
+export function offerStrap() {
+  if (hrStrap.device?.gatt?.connected) return;
+  live.link.hr = 'stuck';
+  refreshScreens();
+}
 
 let hrName = null;
 const hrStrap = getDriver('hr-strap').create({
@@ -195,6 +210,7 @@ const hrRetry = reconnector('hr', () => hrStrap.connect({ device: hrStrap.device
 /** Connects the strap from a click, with the chooser. If that fails during a session, the retries go on. */
 async function connectStrap() {
   hrRetry.stop();
+  delete live.link.hr;
   try {
     setPill('pillHr', 'busy', t('devices.pillStatus', { device: 'HRM', state: t('devices.connecting') }));
     await hrStrap.connect();
@@ -261,6 +277,7 @@ export function initDevices() {
     });
   }
   document.addEventListener('bw-reconnect-strap', connectStrap);
+  document.addEventListener('bw-reconnect-device', (e) => reconnectByHand(e.detail));
   // While it retries the strap can be connected by hand: the chooser finds what a retry cannot
   $('pillHr').onclick = () => {
     const state = $('pillHr').dataset.state;

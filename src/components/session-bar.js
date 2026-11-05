@@ -21,6 +21,7 @@ const template = (menuId) => `
     <button class="icon danger" data-el="finish" disabled><bw-icon name="stop"></bw-icon></button>
     <button class="icon" data-el="export" popovertarget="${menuId}" aria-label="Download the session" title="Download (when finished)" disabled data-i18n-title="run.downloadHelp" data-i18n-aria="run.download"><bw-icon name="download"></bw-icon></button>
     <button class="icon" data-el="upload" aria-label="Upload to Intervals.icu" title="Upload to Intervals.icu (when finished)" disabled><bw-icon name="upload"></bw-icon></button>
+    <button class="primary hidden" data-el="reconnectDevice"></button>
     <button class="primary hidden" data-el="reconnect" data-i18n="session.reconnectStrap">Reconnect the strap</button>
     <div popover id="${menuId}" class="menu" data-el="menu">
       <button data-el="csv" data-i18n="run.csv">CSV (second by second)</button>

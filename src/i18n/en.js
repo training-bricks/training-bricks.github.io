@@ -198,6 +198,8 @@ export default {
   'session.hrLost': 'No heart rate: the target holds for now. Check the strap.',
   'session.hrLostPlan': 'No heart rate: back to the plan until it returns. Check the strap.',
   'session.reconnectStrap': 'Reconnect the strap',
+  'session.reconnect.treadmill': 'Reconnect the treadmill',
+  'session.reconnect.trainer': 'Reconnect the trainer',
   'session.reconnecting': 'Connection lost: reconnecting. The session resumes when you move again.',
   'session.linkLost': 'Device not connected. Connect it from its menu: the session stays paused.',
   'summary.hrControl': 'HR control: {rises}, {drops}',
