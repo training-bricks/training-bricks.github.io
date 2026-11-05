@@ -96,7 +96,7 @@ export default {
 
   // run
   'run.safety': 'Sécurité',
-  'run.safetyText': 'Démarrez le tapis depuis la console, avec la clé de sécurité en place. Le bouton ■ (terminer) et la fin de la séance ralentissent le tapis jusqu’à sa vitesse minimale puis le mettent en pause, mais en cas de problème utilisez STOP sur la console ou retirez la clé.',
+  'run.safetyText': 'Démarrez le tapis depuis la console, avec la clé de sécurité en place. Le bouton ■ (terminer) et la fin de la séance ralentissent le tapis jusqu’à sa vitesse minimale puis le mettent en pause, mais en cas de problème utilisez STOP sur la console ou retirez la clé. Recharger ou fermer la page peut laisser le tapis en marche : arrêtez-le depuis la console.',
   'run.gotIt': 'Compris',
   'run.sessionControls': 'Commandes de la séance',
   'run.distance': 'Distance',

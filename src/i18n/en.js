@@ -96,7 +96,7 @@ export default {
 
   // run
   'run.safety': 'Safety',
-  'run.safetyText': 'Start the belt from the console, with the safety key attached. The ■ (finish) button and the end of the workout slow the belt down to its lowest speed and then pause it, but if anything goes wrong use STOP on the console or pull the key.',
+  'run.safetyText': 'Start the belt from the console, with the safety key attached. The ■ (finish) button and the end of the workout slow the belt down to its lowest speed and then pause it, but if anything goes wrong use STOP on the console or pull the key. Reloading or closing the page may leave the belt running: stop it from the console.',
   'run.gotIt': 'Got it',
   'run.sessionControls': 'Session controls',
   'run.distance': 'Distance',
