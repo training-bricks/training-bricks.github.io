@@ -21,7 +21,7 @@ Runs your Intervals.icu workouts on a treadmill or a smart trainer over Bluetoot
   - Pa:HR / Pw:HR decoupling and VT1 after steady aerobic sessions.
   
   See [Threshold test and aerobic metrics](https://github.com/training-bricks/training-bricks.github.io/wiki/Threshold-test-and-aerobic-metrics).
-- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu with a session summary, RPE and Feel.
+- **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu with a session summary, RPE and Feel. On a ride, speed and distance are the ones the watts would give on a flat road for your Intervals.icu weight (75 kg without one), not the trainer's flywheel, which follows cadence; calories are the kJ of work.
 - **During a session:** workout intensity (70–120 %), voice cues, automatic reconnection after a Bluetooth drop, and recovery after a reload or a closed tab.
 - **App:** an installable PWA that works offline, in English, Spanish and French, with light and dark palettes.
 
