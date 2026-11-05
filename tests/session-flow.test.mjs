@@ -465,3 +465,63 @@ test('hrNow: a strap with RR must be sending good beats; other sources are belie
   Object.assign(rrState, saveRr);
   rrState.contact = undefined;
 });
+
+const hrSpeedStep = (o = {}) => runStep({ duration: 1200, speedStart: 8, speedEnd: 8, zone: 2, hr: { lo: 135, hi: 150, mode: 'target' }, ...o });
+
+/** Seconds on a treadmill whose console and belt follow what was last asked, from `speed` on. */
+function onConsole(h, seconds, speed, hr) {
+  let shown = speed;
+  let sends = h.speeds().length;
+  for (let i = 0; i < seconds; i += 1) {
+    if (h.speeds().length > sends) { sends = h.speeds().length; shown = h.speeds().at(-1).speed; }
+    live.console.targetSpeed = shown;
+    h.run(1, { speed: shown, hr });
+  }
+  live.console.targetSpeed = undefined;
+}
+
+test('flow: an HR move after a console change starts from that speed, not from the plan (#60)', () => {
+  const h = startSession({ steps: [hrSpeedStep()], hrOn: true });
+  h.run(120, { speed: 8, hr: 142 });
+  const before = h.speeds().length;
+  onConsole(h, 150, 3.2, 120);                            // lowered on the console, HR low
+  assert.deepEqual(h.speeds().slice(before).map((x) => x.speed).slice(0, 2), [3.4, 3.6]);
+  assert.equal(h.session.adjust, -4.8);
+});
+
+test('flow: a ramp keeps a console change', () => {
+  const h = startSession({ steps: [runStep({ duration: 600, ramp: true, speedStart: 6, speedEnd: 8 })] });
+  h.run(60, { speed: 6.2 });
+  onConsole(h, 60, 4);
+  const last = h.speeds().at(-1).speed;
+  assert.ok(last >= 4.1 && last <= 4.3, `the ramp goes on from the console's 4: ${last}`);
+});
+
+test('flow: a command not yet shown on the console is not taken for a change, and a restart goes back to the target', () => {
+  const steps = [hrSpeedStep({ duration: 60 }), runStep({ duration: 600, speedStart: 6, speedEnd: 6, ramp: true })];
+  const shown = startSession({ steps });
+  shown.run(59, { speed: 8 });
+  live.console.targetSpeed = 8;                           // the console still shows the last step's speed
+  shown.run(2, { speed: 8 });
+  live.console.targetSpeed = undefined;
+  assert.equal(shown.session.adjust, 0);
+
+  const h = startSession({ steps: [hrSpeedStep()] });
+  h.run(60, { speed: 8 });
+  h.run(5, { speed: 0 });                                 // paused on the console
+  live.console.targetSpeed = 1.5;                         // and started again: the belt reports its own low speed
+  h.run(5, { speed: 1.5 });
+  live.console.targetSpeed = undefined;
+  assert.equal(h.speeds().at(-1).speed, 8);
+  assert.equal(h.session.adjust, 0);
+});
+
+test('flow: a cool-down starts from a speed lowered on the console', () => {
+  const steps = [hrSpeedStep({ duration: 120 }), runStep({ label: 'Cool', duration: 300, cooldown: true, ramp: true, speedStart: 7, speedEnd: 6, hr: null })];
+  const h = startSession({ steps, hrOn: true });
+  h.run(60, { speed: 8, hr: 142 });
+  live.console.targetSpeed = 3.2;
+  h.run(65, { speed: 3.2, hr: 142 });
+  live.console.targetSpeed = undefined;
+  assert.ok(h.speeds().at(-1).speed <= 3.2, `the cool-down asks ${h.speeds().at(-1).speed}`);
+});

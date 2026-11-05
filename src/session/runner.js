@@ -124,7 +124,7 @@ export const session = {
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
-    adjust: 0, hrAdjust: 0, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, hrSeen: false, hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: null, hrLostInStep: false, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
+    adjust: 0, hrAdjust: 0, speedSentAt: null, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, hrSeen: false, hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: null, hrLostInStep: false, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
     stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
@@ -149,8 +149,18 @@ function repeatKey(s) {
 /** Changes made on the console since the last command, which the plan knows nothing about. */
 function consoleOffset() {
   const reported = live.console.targetSpeed;
-  const settled = session.stepElapsed - (session.hrLastAdjust ?? -CONSOLE_SETTLE_S) >= CONSOLE_SETTLE_S;
+  const settled = session.speedSentAt == null || session.totalElapsed - session.speedSentAt >= CONSOLE_SETTLE_S;
   return policy().kind === 'treadmill' && reported > 0 && session.target != null && settled ? roundTo(reported - session.target, 1) : 0;
+}
+
+/** A console change becomes part of the step, so the next command starts from it (#60: 3.2 km/h on the console, then +0.2 by HR, asked 8.2). */
+function absorbConsole() {
+  if (session.state !== 'running' || !(live.speed > 0)) return; // a belt restarting reports its own low speed
+  const off = consoleOffset();
+  if (!off) return;
+  session.adjust = roundTo(session.adjust + off, 1);
+  session.target = roundTo(session.target + off, 1);
+  log('info', `Speed changed on the console: now ${session.target} km/h`);
 }
 
 /** Where a repeating step ended: the next one like it starts there (2026-11-04: each rep went back to a speed known to be too low). */
@@ -183,6 +193,7 @@ function carryInto(step) {
 }
 
 export function applyStep(i) {
+  if (policy().kind === 'treadmill' && !searching(currentStep())) absorbConsole();
   const before = policy().kind === 'trainer' ? session.targetPower : session.target; // where the previous step ended
   rememberStep();
   session.stepIdx = i;
@@ -228,7 +239,9 @@ function coolDownFrom(step, before) {
   if (planned == null) return;
   const base = roundTo(planned * intensityFactor(step, session.intensity), a.decimals);
   if (before >= base) return;
-  session.hrAdjust = Math.max(-a.maxDown, roundTo(before - base, a.decimals));
+  const drop = roundTo(before - base, a.decimals);
+  session.hrAdjust = Math.max(-a.maxDown, drop);
+  session.adjust = roundTo(drop - session.hrAdjust, a.decimals); // lower than HR may go: a console change
   session.stats.cooldownFrom = before;
   session.reason = `cool-down from ${before} ${a.unit}`;
   log('info', `Cool-down starts at ${before} ${a.unit}, not ${base}: the previous step ended there`);
@@ -304,21 +317,27 @@ function pushIncline() {
   device()?.setTarget({ incline: step.incline + session.inclineAdjust }); // clamped by the treadmill
 }
 
+function sendSpeed(speed) {
+  session.speedSentAt = session.totalElapsed;
+  device()?.setTarget({ speed });
+}
+
 /** Sends the target speed if it changed (ramps and manual adjustments). */
 export function pushTarget(force = false) {
   const step = currentStep();
   if (searching(step)) {
     // Nothing planned to go back to: the speed HR found goes again (a restart)
-    if (force && session.target != null) device()?.setTarget({ speed: session.target });
+    if (force && session.target != null) sendSpeed(session.target);
     return;
   }
   if (!step?.hasTarget) { session.target = null; return; }
+  if (!force) absorbConsole();
   const base = targetSpeedAt(step, stepProgress(step));
   const l = limits();
   const t = Math.round(Math.min(l.speedMax ?? Infinity, Math.max(l.speedMin ?? 0, base * intensityFactor(step, session.intensity) + session.adjust + session.hrAdjust)) * 10) / 10;
   if (force || t !== session.target) {
     session.target = t;
-    device()?.setTarget({ speed: t });
+    sendSpeed(t);
   }
 }
 
@@ -773,7 +792,7 @@ function adjustForHr(step) {
     cue({ kind: 'hr', delta: applied, unit: a.unit });
     const what = a === POWER ? 'power' : 'speed';
     log('info', `${reason}: ${what} ${applied > 0 ? '+' : '−'}${Math.abs(applied).toFixed(a.decimals)} ${a.unit}, HR adjustment ${session.hrAdjust > 0 ? '+' : ''}${session.hrAdjust.toFixed(a.decimals)}`);
-    if (search) { session.target = next; device()?.setTarget({ speed: next }); }
+    if (search) { session.target = next; sendSpeed(next); }
     else if (a === POWER) pushPower(); else pushTarget();
   }
   session.hrLastAdjust = t;
