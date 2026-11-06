@@ -36,7 +36,7 @@ test('version: a published one shows the short commit, links to it, and has its 
   const deployedAt = new Date(now - 35 * 60_000).toISOString();
   const info = versionInfo({ sha, deployedAt }, now);
   assert.equal(info.commit, '56ccc43');
-  assert.equal(info.href, `https://github.com/ycaceres/brickwise/commit/${sha}`);
+  assert.equal(info.href, `https://github.com/training-bricks/training-bricks.github.io/commit/${sha}`);
   assert.equal(info.deployed, `${formatStamp(deployedAt)} (35 minutes ago)`);
 });
 

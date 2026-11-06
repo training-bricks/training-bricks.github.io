@@ -7,7 +7,7 @@ import { $ } from '../lib/dom.js';
 import { every } from '../lib/timer.js';
 import { formatAgo, formatStamp } from '../i18n/format.js';
 
-const REPO = 'https://github.com/ycaceres/brickwise';
+const REPO = 'https://github.com/training-bricks/training-bricks.github.io';
 const REFRESH_MS = 60_000;
 
 /** What the card says about a version. */
