@@ -90,6 +90,7 @@ export function flattenWorkout(doc, { position = 'mid', defaultIncline = 1, zone
         speedEnd: targets.speedEnd != null ? round1(targets.speedEnd) : null,
         incline: parseIncline(step.text) ?? defaultIncline,
         hasTarget: targets.speedStart != null,
+        walk: !!targets.walk,
         ramp: !!step.ramp,
         warmup: !!step.warmup,
         cooldown: !!step.cooldown,

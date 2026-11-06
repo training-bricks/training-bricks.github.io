@@ -325,3 +325,19 @@ test('withRestingHr: Z0 and Z1 share the way from rest to Z2', () => {
   const ride = withRestingHr({ hr: [], ride: { hr: zones(129).hr } }, 50);
   assert.equal(ride.ride.hr[0].lo, 90);
 });
+
+test('a step called a walk or a recovery starts at 3 km/h, unless the workout writes its pace', () => {
+  const zones = zonesFromProfile(profileFromIntervals(runSettings));
+  const z1 = { pace: { value: 1, units: 'pace_zone' } };
+  const flat = (steps) => flattenWorkout(resolveDoc({ steps }, zones, 'run'), { zones });
+  const run = flat([
+    { duration: 60, text: 'Walk', ...z1 },
+    { duration: 60, text: 'Caminata', power: { value: 1, units: 'power_zone' } },
+    { duration: 60, text: 'Récupération', ...z1 },
+    { duration: 60, ...z1 },
+    { duration: 60, text: 'Walk', pace: { value: 400, units: 'secs/km' }, _pace: { value: 2.5 } },
+  ]);
+  assert.deepEqual(run.slice(0, 3).map((s) => [s.speedStart, s.speedEnd, s.walk]), [[3, 3, true], [3, 3, true], [3, 3, true]]);
+  assert.ok(run[3].speedStart > 3 && !run[3].walk, 'not named: the zone speed');
+  assert.ok(run[4].speedStart > 3 && !run[4].walk, 'a written pace is kept');
+});
