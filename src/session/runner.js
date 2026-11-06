@@ -133,6 +133,15 @@ export function currentStep() {
   return session.steps[session.stepIdx] || null;
 }
 
+/** Ride steps shorter than this (s) ask the trainer for its quick ERG ramp. */
+const QUICK_RAMP_STEP_S = 20;
+
+/** What a step that is over went past its end: the time of a timed step, the distance of a distance step. */
+function overrun(step) {
+  if (step.duration) return { s: Math.max(0, session.stepElapsed - step.duration), m: 0 };
+  return { s: 0, m: Math.max(0, session.stepDist - step.distance) };
+}
+
 function stepProgress(step) {
   if (!step) return 0;
   if (step.duration) return session.stepElapsed / step.duration;
@@ -200,16 +209,21 @@ function carryInto(step) {
   }
 }
 
-export function applyStep(i) {
+/**
+ * Starts step i. over: how far (s, m) the step that ended went past its end;
+ * the new one starts that much in (2026-11-05: dropping the ~0.14 s of each
+ * step made a 60 min ride last 1:00:06).
+ */
+export function applyStep(i, over = { s: 0, m: 0 }) {
   if (policy().kind === 'treadmill' && !searching(currentStep())) absorbConsole();
   const before = policy().kind === 'trainer' ? session.targetPower : session.target; // where the previous step ended
   rememberStep();
   rememberZone(before);
   session.stepIdx = i;
-  session.stepStarts[i] = session.totalElapsed;
+  session.stepStarts[i] = session.totalElapsed - over.s;
   session.stepIntensity[i] = session.intensity;
-  session.stepElapsed = 0;
-  session.stepDist = 0;
+  session.stepElapsed = over.s;
+  session.stepDist = over.m;
   session.adjust = 0;
   session.hrAdjust = 0;
   session.inclineAdjust = 0;
@@ -331,7 +345,8 @@ export function pushPower(force = false) {
   const w = Math.round(Math.min(l.powerMax ?? Infinity, Math.max(l.powerMin ?? 0, base * intensityFactor(step, session.intensity) + session.adjust + session.hrAdjust)));
   if (force || w !== session.targetPower) {
     session.targetPower = w;
-    device()?.setTarget({ power: w });
+    // A short effort would spend a third of itself in the usual ramp (2026-11-05: 12 s at 197 W averaged 180–185 W)
+    device()?.setTarget({ power: w, quick: step.duration > 0 && step.duration < QUICK_RAMP_STEP_S });
   }
 }
 
@@ -571,7 +586,7 @@ export function tick(now = Date.now()) {
         log('info', `Threshold test: ${testEnd}, ramp over`);
         const cd = session.steps.findIndex((s, i) => i > session.stepIdx && !s.test);
         applyStep(cd < 0 ? session.steps.length : cd);
-      } else if (stepProgress(step) >= 1) applyStep(session.stepIdx + 1);
+      } else if (stepProgress(step) >= 1) applyStep(session.stepIdx + 1, overrun(step));
       else if (warmupDone(step)) {
         log('info', `HR ${live.hr} reached the top of Z1 (${zones().hr[0].hi}): warm-up done`);
         applyStep(session.stepIdx + 1);

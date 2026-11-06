@@ -113,6 +113,12 @@ test('trainer: base class clamps, ramps through the driver hook and stop cancels
   t.stop();                     // the ramp down stops right away
   await new Promise((r) => setTimeout(r, 30));
   assert.deepEqual(sent.slice(-2), [['power', 340], ['stop']]);
+  // A short effort asks for the quick ramp: 1 s instead of 2.5 s (here scaled down to 2 sends instead of 5)
+  sent.length = 0;
+  t.setTarget({ power: 100 });
+  t.setTarget({ power: 300, quick: true });
+  await new Promise((r) => setTimeout(r, 30));
+  assert.deepEqual(sent.map(([, w]) => w), [100, 200, 300]);
   t.setSimulation({ grade: 30 });
   assert.deepEqual(sent.at(-1), ['grade', 15]);
 });

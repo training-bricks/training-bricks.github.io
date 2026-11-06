@@ -602,3 +602,20 @@ test('flow: a walk changed by hand carries to the next walk, with no HR control'
   h.run(60, { speed: 8 });
   assert.equal(h.speeds().at(-1).speed, 4.5, 'the next walk starts where the last one ended');
 });
+
+test('flow (2026-11-05): a step starts as far in as the last one went past its end, so the workout does not grow', () => {
+  const h = startSession({ steps: [runStep({ duration: 10 }), runStep({ duration: 10 }), runStep({ duration: 10 })] });
+  h.run(42, { ms: 700 });                        // ticks of 0.7 s: each step ends between ticks
+  assert.deepEqual(h.session.stepStarts.map((s) => Math.round(s * 10) / 10), [0, 10, 20]);
+  assert.equal(h.session.state, 'running');
+  h.run(2, { ms: 700 });
+  assert.notEqual(h.session.state, 'running', 'over after 30 s, not 31.5 s');
+});
+
+test('flow (2026-11-05): a ride step under 20 s asks the trainer for the quick ramp, a longer one does not', () => {
+  const ride = (duration, w) => ({ label: 'Step', duration, hasTarget: false, speedStart: null, speedEnd: null, incline: 0, power: { lo: w, hi: w }, zone: 2, hr: null });
+  const h = startSession({ sport: 'ride', steps: [ride(60, 120), ride(12, 197), ride(48, 120)] });
+  h.run(80);
+  const asked = h.sent.filter((x) => x.power != null).map(({ power, quick }) => [power, quick]);
+  assert.deepEqual(asked, [[120, false], [197, true], [120, false]]);
+});
