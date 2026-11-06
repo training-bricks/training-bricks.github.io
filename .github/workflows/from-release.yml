@@ -1,0 +1,23 @@
+name: From release
+
+# main takes pull requests from release only: branches go to release first
+on:
+  pull_request:
+    branches: [main]
+
+permissions: {}
+
+jobs:
+  from-release:
+    runs-on: ubuntu-latest
+    steps:
+      - name: The pull request comes from release
+        run: |
+          if [ "$HEAD" != "release" ] || [ "$REPO" != "$BASE_REPO" ]; then
+            echo "::error::main takes pull requests from release only, not from $REPO:$HEAD"
+            exit 1
+          fi
+        env:
+          HEAD: ${{ github.head_ref }}
+          REPO: ${{ github.event.pull_request.head.repo.full_name }}
+          BASE_REPO: ${{ github.repository }}
