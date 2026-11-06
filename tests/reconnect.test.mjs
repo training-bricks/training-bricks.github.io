@@ -240,3 +240,30 @@ test('device menu: a simulator offers a connection drop', () => {
   const e = menuEntries('trainer', { debug: true, device: { connected: true, simulate() {} } });
   assert.ok(e.some((x) => x.action === 'sim-drop'));
 });
+
+test('reconnect: asks for a hand on time even if an attempt never answers, and that attempt counts as failed', async () => {
+  const clock = fakeClock();
+  const states = [];
+  let tries = 0;
+  const r = createReconnector({ clock, onState: (s) => states.push(s), attempt: () => { tries += 1; return new Promise(() => {}); } });
+  r.start();
+  await clock.advance((STUCK_S - 1) * 1000);
+  assert.ok(!states.includes('stuck'));
+  await clock.advance(2000);
+  assert.equal(states.filter((x) => x === 'stuck').length, 1);
+  await clock.advance(30_000);
+  assert.ok(tries >= 2, 'a new attempt after the one that hung');
+  r.stop();
+  assert.equal(clock.pending(), 0);
+});
+
+test('reconnect: not asking for a hand once the session no longer needs the device', async () => {
+  const clock = fakeClock();
+  const states = [];
+  let needed = true;
+  const r = createReconnector({ clock, shouldRetry: () => needed, onState: (s) => states.push(s), attempt: () => Promise.reject(new Error('no')) });
+  r.start();
+  needed = false;
+  await clock.advance((STUCK_S + 1) * 1000);
+  assert.ok(!states.includes('stuck'));
+});

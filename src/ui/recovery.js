@@ -10,7 +10,7 @@ import { idbStore } from '../lib/idb.js';
 import { formatDuration } from '../workouts/format.js';
 import { createRecovery } from '../session/recovery.js';
 import { session, events as sessionEvents, restoreSession, finish } from '../session/runner.js';
-import { connectDevice } from './devices.js';
+import { connectDevice, offerStrap } from './devices.js';
 import { showTab, DEBUG } from './tabs.js';
 import { log } from './debug.js';
 import { t } from '../i18n/index.js';
@@ -45,6 +45,7 @@ export async function initRecovery() {
     showTab(tab);
     // With ?debug=true the simulators are in the device's menu
     if (!finished && !DEBUG) connectDevice(kind);
+    if (!finished && saved.session.samples.some((s) => s.hr)) offerStrap();
   };
   $('recoverEnd').onclick = () => {
     hide();

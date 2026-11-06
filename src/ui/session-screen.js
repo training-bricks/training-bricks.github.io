@@ -71,6 +71,8 @@ export const selectedSport = () => (app.state.selection ? (app.state.selection.e
 /** Whether the session (running or finished) belongs to this page's sport. */
 export const ownSession = (sport) => session.state !== 'idle' && session.policy?.sport === sport;
 
+const DEVICE_OF = { run: 'treadmill', ride: 'trainer' };
+
 /** The note when this page's device is gone during its session (#36, #37), or ''. */
 export function linkNote(kind) {
   if (!ownSession(kind === 'trainer' ? 'ride' : 'run') || !['running', 'paused'].includes(session.state)) return '';
@@ -132,6 +134,8 @@ export function updateSessionButtons(el, sport, { canStart, finishLabel }) {
   el.skip.disabled = !(own && session.steps.length && (session.state === 'running' || session.state === 'paused'));
   el.finish.disabled = !(own && active);
   el.reconnect.classList.toggle('hidden', !(own && active && live.link.hr === 'stuck'));
+  el.reconnectDevice.classList.toggle('hidden', !(own && active && live.link[DEVICE_OF[sport]] === 'stuck'));
+  el.reconnectDevice.textContent = t(`session.reconnect.${DEVICE_OF[sport]}`);
   el.finish.title = finishLabel;
   el.finish.setAttribute('aria-label', finishLabel);
   const finished = own && session.state === 'done' && session.samples.length > 0;
@@ -195,6 +199,7 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
   };
 
   el.reconnect.onclick = () => document.dispatchEvent(new Event('bw-reconnect-strap')); // ui/devices.js
+  el.reconnectDevice.onclick = () => document.dispatchEvent(new CustomEvent('bw-reconnect-device', { detail: DEVICE_OF[sport] }));
 
   el.intensityDown.onclick = () => setIntensity(session.intensity - 1);
   el.intensityUp.onclick = () => setIntensity(session.intensity + 1);

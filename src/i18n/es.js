@@ -198,6 +198,8 @@ export default {
   'session.hrLost': 'Sin FC: por ahora se mantiene el objetivo. Revisa la banda.',
   'session.hrLostPlan': 'Sin FC: se vuelve al plan hasta que regrese. Revisa la banda.',
   'session.reconnectStrap': 'Reconectar la banda',
+  'session.reconnect.treadmill': 'Reconectar la caminadora',
+  'session.reconnect.trainer': 'Reconectar el rodillo',
   'session.reconnecting': 'Se perdió la conexión: reconectando. La sesión sigue cuando vuelvas a moverte.',
   'session.linkLost': 'Dispositivo sin conectar. Conéctalo desde su menú: la sesión sigue en pausa.',
   'summary.hrControl': 'Control por FC: {rises}, {drops}',

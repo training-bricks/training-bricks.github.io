@@ -198,6 +198,8 @@ export default {
   'session.hrLost': 'Pas de FC : l’objectif est maintenu pour l’instant. Vérifiez la ceinture.',
   'session.hrLostPlan': 'Pas de FC : retour au plan jusqu’à son retour. Vérifiez la ceinture.',
   'session.reconnectStrap': 'Reconnecter la ceinture',
+  'session.reconnect.treadmill': 'Reconnecter le tapis',
+  'session.reconnect.trainer': 'Reconnecter le home-trainer',
   'session.reconnecting': 'Connexion perdue : reconnexion en cours. La séance reprend dès que vous bougez à nouveau.',
   'session.linkLost': 'Appareil non connecté. Connectez-le depuis son menu : la séance reste en pause.',
   'summary.hrControl': 'Contrôle par FC : {rises}, {drops}',
