@@ -38,7 +38,7 @@ jobs:
           cat > version.js <<EOF
           export const VERSION = { sha: '$GITHUB_SHA', deployedAt: '$(date -u +%FT%TZ)' };
           EOF
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: .
       - id: pages
