@@ -133,6 +133,16 @@ function lapIntensity(step, steps) {
 }
 
 /** The averages lap and session messages share, over some samples. */
+/**
+ * kcal of a ride: its work in kJ, one sample per second. The body turns about
+ * a quarter of its energy into work, and 1 kcal is 4.184 kJ, so kcal ≈ kJ.
+ * Null without power (a run).
+ */
+export function rideCalories(samples) {
+  const power = samples.map((s) => s.power).filter((v) => v != null);
+  return power.length ? Math.round(power.reduce((a, w) => a + w, 0) / 1000) : null;
+}
+
 function totals(samples) {
   const positive = (key) => samples.map((s) => s[key]).filter((v) => v > 0);
   const hr = positive('hr');
@@ -148,6 +158,7 @@ function totals(samples) {
     maxCadence: cadence.length ? Math.round(Math.max(...cadence)) : null,
     avgPower: power.length ? Math.round(mean(power)) : null,
     maxPower: power.length ? Math.round(Math.max(...power)) : null,
+    calories: rideCalories(samples),
   };
 }
 
@@ -215,7 +226,7 @@ export function buildFit(samples, { sport = 'run', steps = [], name = null, devi
     w.message(MSG.lap, [
       [254, UINT16, i], [253, UINT32, fitTime(lapEnd)], [0, ENUM, EVENT.lap], [1, ENUM, EVENT_TYPE.stop], [2, UINT32, fitTime(lapStart)],
       [7, UINT32, scaled((lapEnd - lapStart) / 1000, 1000)], [8, UINT32, scaled(timer, 1000)], [9, UINT32, scaled(distance - lastDistance, 100)],
-      [13, UINT16, a.avgSpeed], [14, UINT16, a.maxSpeed], [15, UINT8, a.avgHr], [16, UINT8, a.maxHr],
+      [11, UINT16, a.calories], [13, UINT16, a.avgSpeed], [14, UINT16, a.maxSpeed], [15, UINT8, a.avgHr], [16, UINT8, a.maxHr],
       [17, UINT8, a.avgCadence], [18, UINT8, a.maxCadence], [19, UINT16, a.avgPower], [20, UINT16, a.maxPower],
       [23, ENUM, lapIntensity(step, steps)], [24, ENUM, laps[i + 1] ? LAP_TRIGGER.time : LAP_TRIGGER.sessionEnd],
       [25, ENUM, fitSport], [39, ENUM, subSport], [71, UINT16, lap.step != null ? lap.step - 1 : null],
@@ -229,7 +240,7 @@ export function buildFit(samples, { sport = 'run', steps = [], name = null, devi
     [254, UINT16, 0], [253, UINT32, fitTime(end)], [0, ENUM, EVENT.session], [1, ENUM, EVENT_TYPE.stop], [2, UINT32, fitTime(start)],
     [5, ENUM, fitSport], [6, ENUM, subSport], [7, UINT32, scaled((end - start) / 1000, 1000)], [8, UINT32, scaled(timer, 1000)],
     [9, UINT32, scaled((samples.at(-1).distance ?? 0) - (samples[0].distance ?? 0), 100)],
-    [14, UINT16, a.avgSpeed], [15, UINT16, a.maxSpeed], [16, UINT8, a.avgHr], [17, UINT8, a.maxHr],
+    [11, UINT16, a.calories], [14, UINT16, a.avgSpeed], [15, UINT16, a.maxSpeed], [16, UINT8, a.avgHr], [17, UINT8, a.maxHr],
     [18, UINT8, a.avgCadence], [19, UINT8, a.maxCadence], [20, UINT16, a.avgPower], [21, UINT16, a.maxPower],
     [22, UINT16, altitude ? Math.round(altitude.at(-1)) : null], [25, UINT16, 0], [26, UINT16, laps.length], [28, ENUM, SESSION_TRIGGER_ACTIVITY_END],
   ]);

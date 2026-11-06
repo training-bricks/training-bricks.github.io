@@ -1,4 +1,5 @@
 import { climbedMeters } from './altitude.js';
+import { rideCalories } from './fit.js';
 
 /**
  * Builds an indoor running TCX from the session samples.
@@ -45,7 +46,7 @@ export function buildTcx(samples, { name = 'Brickwise run', sport = 'run' } = {}
 <Lap StartTime="${iso(start)}">
 <TotalTimeSeconds>${totalSec}</TotalTimeSeconds>
 <DistanceMeters>${last.distance.toFixed(1)}</DistanceMeters>
-<Calories>0</Calories>
+<Calories>${(ride && rideCalories(samples)) || 0}</Calories>
 ${avgHr ? `<AverageHeartRateBpm><Value>${avgHr}</Value></AverageHeartRateBpm><MaximumHeartRateBpm><Value>${maxHr}</Value></MaximumHeartRateBpm>` : ''}
 <Intensity>Active</Intensity>
 ${avgCad ? `<Cadence>${avgCad}</Cadence>\n` : ''}<TriggerMethod>Manual</TriggerMethod>
