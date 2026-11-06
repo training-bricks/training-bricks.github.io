@@ -31,7 +31,7 @@ It is a static page with no backend of its own. Web Bluetooth only works over HT
 
 ```bash
 git clone https://github.com/training-bricks/training-bricks.github.io.git
-cd brickwise
+cd training-bricks.github.io
 npm start            # python3 tools/serve.py 8000; open http://localhost:8000
 ```
 
