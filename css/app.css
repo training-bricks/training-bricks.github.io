@@ -1,14 +1,18 @@
 /* Themes: the palette of the app chrome, picked in Configuration (data-theme on <html>).
-   Without data-theme the page follows the system light/dark setting. */
+   Without data-theme the page follows the system light/dark setting.
+   --accent: selection, links and focus; --highlight: what to press first (primary
+   buttons) and small marks. The light palette is the icon's: cream, navy and orange. */
 :root {
-  --bg: #f4f5f7;
-  --surface: #ffffff;
-  --surface-2: #eef0f3;
-  --border: #d9dde3;
-  --text: #15181d;
-  --muted: #5d6673;
-  --accent: #1f6feb;
-  --accent-text: #ffffff;
+  --bg: #fffcf7;
+  --surface: #fff4e3;
+  --surface-2: #fbe8cc;
+  --border: #ecdcc0;
+  --text: #0b2a5b;
+  --muted: #5b6b84;
+  --accent: #0b2a5b;
+  --accent-text: #fff4e3;
+  --highlight: #ff7a3d;
+  --highlight-text: #0b2a5b;
   --ok: #1a7f37;
   --warn: #9a6700;
   --danger: #cf222e;
@@ -26,6 +30,8 @@
     --muted: #8b95a3;
     --accent: #4c8dff;
     --accent-text: #0d1014;
+    --highlight: #ff8a52;
+    --highlight-text: #0d1014;
     --ok: #3fb950;
     --warn: #d29922;
     --danger: #f85149;
@@ -43,6 +49,8 @@
   --muted: #8b95a3;
   --accent: #4c8dff;
   --accent-text: #0d1014;
+  --highlight: #ff8a52;
+  --highlight-text: #0d1014;
   --ok: #3fb950;
   --warn: #d29922;
   --danger: #f85149;
@@ -59,6 +67,8 @@
   --muted: #5e5e5e;
   --accent: #1c1c1c;
   --accent-text: #ffffff;
+  --highlight: #1c1c1c;
+  --highlight-text: #ffffff;
   --ok: #3a3a3a;
   --warn: #6e6e6e;
   --danger: #111111;
@@ -75,6 +85,8 @@
   --muted: #a99bd6;
   --accent: #ff4fa3;
   --accent-text: #120d24;
+  --highlight: #ff4fa3;
+  --highlight-text: #120d24;
   --ok: #34e0a1;
   --warn: #ffc23d;
   --danger: #ff5c5c;
@@ -94,6 +106,7 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 body {
+  accent-color: var(--highlight);   /* checkboxes, radios and ranges: a small orange mark */
   --sidebar-w: 60px;
   /* One inner spacing and one corner for every card-like box */
   --pad: 16px;
@@ -139,9 +152,9 @@ select {
   background-size: 5px 5px; background-repeat: no-repeat;
 }
 button { cursor: pointer; font-weight: 600; }
-button:hover:not(:disabled) { border-color: var(--accent); }
+button:hover:not(:disabled) { border-color: var(--highlight); }
 button:disabled { opacity: .45; cursor: not-allowed; }
-button.primary { background: var(--accent); border-color: var(--accent); color: var(--accent-text); }
+button.primary { background: var(--highlight); border-color: var(--highlight); color: var(--highlight-text); }
 button.danger { color: var(--danger); }
 .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 label.field { display: grid; gap: 4px; font-size: 13px; color: var(--muted); }
@@ -323,7 +336,7 @@ button.link { border: 0; background: none; padding: 0; min-height: 0; color: var
 .witem .sport-icon { display: flex; flex: none; }
 .witem .sport-icon .ico { width: 18px; height: 18px; }
 [hidden] { display: none !important; }
-.witem[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--accent); background: var(--surface-2); }
+.witem[aria-pressed="true"] { border-color: var(--accent); box-shadow: inset 3px 0 0 var(--highlight); background: var(--surface-2); }
 .viz-baseline { stroke: var(--muted); stroke-width: 1; opacity: .6; }
 details summary { cursor: pointer; color: var(--muted); font-size: 13px; }
 
@@ -359,7 +372,7 @@ input.check { min-height: auto; }
 /* Startup: a spinner instead of a shell without icons or pages until src/main.js has them.
    After 15 s the shell shows anyway, so a module that never gets there cannot hide the app. */
 html:not(.app-ready) .sidebar, html:not(.app-ready) main { visibility: hidden; animation: bw-reveal 0s 15s forwards; }
-html:not(.app-ready):not(.app-failed) body::after { content: ""; position: fixed; top: 50%; left: 50%; width: 32px; height: 32px; margin: -16px; border: 3px solid var(--border); border-top-color: var(--accent); border-radius: 50%; opacity: 0; animation: bw-spin 0.8s linear infinite, bw-show 14.7s 0.3s; }
+html:not(.app-ready):not(.app-failed) body::after { content: ""; position: fixed; top: 50%; left: 50%; width: 32px; height: 32px; margin: -16px; border: 3px solid var(--border); border-top-color: var(--highlight); border-radius: 50%; opacity: 0; animation: bw-spin 0.8s linear infinite, bw-show 14.7s 0.3s; }
 @keyframes bw-reveal { to { visibility: visible; } }
 @keyframes bw-spin { to { transform: rotate(360deg); } }
 @keyframes bw-show { from, to { opacity: 1; } }

@@ -1,10 +1,10 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <!-- Brickwise: a "B" built of bricks (a "brick" workout: one sport after another) on the accent blue -->
-  <rect width="512" height="512" rx="112" fill="#1f6feb"/>
-  <g fill="#fff">
-    <rect x="118" y="112" width="84" height="132" rx="14"/>
-    <rect x="118" y="260" width="84" height="140" rx="14"/>
-    <path d="M232 112H342A24 24 0 0 1 366 136V212A24 24 0 0 1 342 236H232A14 14 0 0 1 218 222V126A14 14 0 0 1 232 112z"/>
-    <path d="M232 252H366A28 28 0 0 1 394 280V372A28 28 0 0 1 366 400H232A14 14 0 0 1 218 386V266A14 14 0 0 1 232 252z"/>
+  <!-- TB: a T and a B built of bricks (a "brick" workout: one sport after another), orange and navy on cream -->
+  <rect width="512" height="512" rx="112" fill="#fff4e3"/>
+  <g transform="translate(256 256) scale(0.86) translate(-249.5 -285)">
+    <rect x="52" y="118" width="170" height="97" rx="16" fill="#ff7a3d"/>
+    <rect x="125" y="231" width="97" height="221" rx="16" fill="#ff7a3d"/>
+    <rect x="242" y="118" width="173" height="144" rx="22" fill="#0b2a5b"/>
+    <rect x="242" y="282" width="205" height="170" rx="26" fill="#0b2a5b"/>
   </g>
 </svg>
