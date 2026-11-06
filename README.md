@@ -83,6 +83,7 @@ More in the [User guide](https://github.com/training-bricks/training-bricks.gith
 - `npm test` runs the hardware-free tests (`node --test`): drivers against fake GATT devices, the session engine with simulated devices and a fake clock, workouts, physiology, exports and pages.
 - The code is static ES modules with no build step and no dependencies. Every file is described in [Code structure](https://github.com/training-bricks/training-bricks.github.io/wiki/Code-structure), together with the settings kept in the browser.
 - To add a device driver, see [`src/devices/README.md`](src/devices/README.md). To add a language, see [`src/i18n/README.md`](src/i18n/README.md). The workout library is [`data/library.json`](data/library.json) ([format](https://github.com/training-bricks/training-bricks.github.io/wiki/Workout-library-format)).
+- Branches start from `main` and go by pull request to `release`, which needs the tests to pass. `main`, which the site is published from, takes pull requests from `release` only.
 - Plans and ideas are in the [issues](https://github.com/training-bricks/training-bricks.github.io/issues) and in the [competitive analysis](https://github.com/training-bricks/training-bricks.github.io/wiki/Competitive-analysis-and-improvements).
 
 ## References
