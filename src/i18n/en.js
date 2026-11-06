@@ -178,6 +178,7 @@ export default {
   'voice.linkBack': 'Connection back',
   'voice.linkStuck': 'Tap to reconnect',
   'voice.test': 'Next: 6 minutes at 171 watts',
+  'voice.pace': '{pace} per kilometer',
   'voice.minutes': { one: '{n} minute', other: '{n} minutes' },
   'voice.seconds': { one: '{n} second', other: '{n} seconds' },
   'voice.meters': { one: '{n} meter', other: '{n} meters' },
