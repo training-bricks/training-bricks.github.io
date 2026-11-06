@@ -99,6 +99,8 @@ export function flattenWorkout(doc, { position = 'mid', defaultIncline = 1, zone
         power: targets.power,  // bike steps: { lo, hi } W
         intensity: targets.intensity,
         zone: targets.zone,    // pace zone (HR zone for an HR target, power zone on a bike), to color the chart
+        zoneStart: targets.zoneStart ?? targets.zone, // where a ramp starts and ends: a step starting in the zone
+        zoneEnd: targets.zoneEnd ?? targets.zone,     // the one before ended in keeps its pace
       });
     });
   };

@@ -157,6 +157,55 @@ test('flow (#10): the cool-down starts no faster than the main step ended, and g
   assert.ok(h.speeds().filter((x) => x.at > 300).every((x) => x.speed <= ended));
 });
 
+test('flow: a ramp down from the zone the step before ended in keeps its pace, and gives nothing back (2026-11-06)', () => {
+  const z2 = (o = {}) => runStep({ label: 'Z2', hr: Z2, zone: 2, zoneStart: 2, zoneEnd: 2, duration: 300, speedStart: 8, speedEnd: 8, ...o });
+  const down = { label: 'Easy', ramp: true, speedStart: 8, speedEnd: 6.5, duration: 300, zone: 2, zoneStart: 2, zoneEnd: 1, hr: { lo: 135, hi: 134, mode: 'cap' } };
+  const h = startSession({ steps: [z2(), runStep(down)], hrOn: true });
+  h.run(300, { hr: 160 });                                // HR high: the main step comes down
+  const ended = h.session.samples.at(-1).target;
+  assert.ok(ended < 8, `main step ended at ${ended}`);
+  h.run(5, { hr: 130 });
+  assert.equal(h.session.stepIdx, 1);
+  assert.equal(h.session.target, ended, 'the ramp starts where the main step ended');
+  h.run(200, { hr: 115 });                                // HR well under the cap: the drop is not given back
+  assert.ok(h.speeds().filter((x) => x.at > 300).every((x) => x.speed <= ended));
+
+  const up = startSession({ steps: [z2(), z2({ label: 'Z2 b', speedStart: 7.6, speedEnd: 7.6 })], hrOn: true });
+  up.run(300, { hr: 125 });                               // HR low: the first step goes up
+  const high = up.session.samples.at(-1).target;
+  assert.ok(high > 8, `first step ended at ${high}`);
+  up.run(3, { hr: 140 });
+  assert.equal(up.session.target, high, 'up too, over a lower plan');
+});
+
+test('flow: a step starts where the last step in its zone ended; a zone not run yet, or no HR, starts from the plan', () => {
+  const step = (zone, speed, hr, o = {}) => runStep({ label: `Z${zone}`, speedStart: speed, speedEnd: speed, zone, zoneStart: zone, zoneEnd: zone, duration: 300, hr: { ...hr, mode: 'target' }, ...o });
+  const z2 = (o) => step(2, 8, Z2, o);
+  const z4 = () => step(4, 11, { lo: 160, hi: 170 });
+  const h = startSession({ steps: [z2(), z4(), z2(), z4(), z2()], hrOn: true });
+  h.run(300, { hr: 160 });                                // Z2 comes down
+  const z2Ended = h.session.samples.at(-1).target;
+  assert.ok(z2Ended < 8);
+  h.run(3, { hr: 150 });
+  assert.equal(h.session.target, 11, 'Z4 not run yet: its plan');
+  h.run(297, { hr: 150 });                                // HR low for Z4: it goes up
+  const z4Ended = h.session.samples.at(-1).target;
+  assert.ok(z4Ended > 11);
+  h.run(3, { hr: 160 });
+  assert.equal(h.session.target, z2Ended, 'the rest starts where the last Z2 ended');
+  h.run(297, { hr: 160 });                                // and comes down more
+  const restEnded = h.session.samples.at(-1).target;
+  assert.ok(restEnded < z2Ended);
+  h.run(3, { hr: 150 });
+  assert.equal(h.session.target, z4Ended, 'the second Z4 starts where the first ended');
+  h.run(300, { hr: 165 });
+  assert.equal(h.session.target, restEnded, 'the last rest where the one before ended');
+
+  const plain = startSession({ steps: [step(2, 8, Z2, { duration: 60 }), step(2, 8.5, Z2, { duration: 60 })] });
+  plain.run(62, { speed: 7 });
+  assert.equal(plain.speeds().at(-1).speed, 8.5, 'no HR: the plan stands');
+});
+
 test('csv (#10): step, HR range, HR adjustment and the reason of each change', () => {
   const h = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
   h.run(80, { hr: 160 });

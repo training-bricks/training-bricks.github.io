@@ -124,7 +124,7 @@ export const session = {
 export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
-    adjust: 0, hrAdjust: 0, speedSentAt: null, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, hrSeen: false, hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: null, hrLostInStep: false, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
+    adjust: 0, hrAdjust: 0, speedSentAt: null, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, hrSeen: false, hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: null, hrLostInStep: false, zoneEnded: {}, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
     stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
@@ -204,6 +204,7 @@ export function applyStep(i) {
   if (policy().kind === 'treadmill' && !searching(currentStep())) absorbConsole();
   const before = policy().kind === 'trainer' ? session.targetPower : session.target; // where the previous step ended
   rememberStep();
+  rememberZone(before);
   session.stepIdx = i;
   session.stepStarts[i] = session.totalElapsed;
   session.stepIntensity[i] = session.intensity;
@@ -230,29 +231,45 @@ export function applyStep(i) {
   log('info', `Step ${i + 1}/${session.steps.length}: ${step.label}`);
   beep(i === 0 ? 660 : 880, 0.25);
   carryInto(step);
-  coolDownFrom(step, before);
+  startFrom(step, before);
   sendStep(true);
   changed();
 }
 
+/** Under HR control, the pace a step ended at is the one its end zone starts at next time. */
+function rememberZone(before) {
+  const step = currentStep();
+  if (byHr(step) && !step.walk && step.zoneEnd != null && before != null) session.zoneEnded[step.zoneEnd] = before;
+}
+
+const byHr = (step) => session.hrOn && !session.hrFellBack && !!step?.hr && step.hr.mode !== 'info';
+
 /**
  * A cool-down starts no faster than the step before it ended: after HR
  * brought the main step down to 7.1 km/h, a ramp from 7.6 sped the athlete
- * up (2026-10-30, #10). The ramp keeps its shape from there.
+ * up (2026-10-30, #10). The ramp keeps its shape from there. Under HR
+ * control, a step starts at the pace the last step that ended in its start
+ * zone ended at, up or down, marked or not: the step just before for a ramp
+ * down from Z2 after Z2 (2026-11-06: it went from 7.3 back up to 8), the last
+ * rest for the next rest. With the α1 guard on, not up. A zone not run yet,
+ * or no HR, starts from the plan.
  */
-function coolDownFrom(step, before) {
-  if (!step.cooldown || before == null) return;
+function startFrom(step, before) {
   const a = actuator();
   const planned = a === POWER ? powerAt(step, 0) : step.hasTarget ? targetSpeedAt(step, 0) : null;
   if (planned == null) return;
+  const ended = byHr(step) && !step.walk ? session.zoneEnded[step.zoneStart] : undefined;
+  const from = step.cooldown && before != null ? Math.min(before, ended ?? before) : ended;
+  if (from == null) return;
   const base = roundTo(planned * intensityFactor(step, session.intensity), a.decimals);
-  if (before >= base) return;
-  const drop = roundTo(before - base, a.decimals);
-  session.hrAdjust = Math.max(-a.maxDown, drop);
-  session.adjust = roundTo(drop - session.hrAdjust, a.decimals); // lower than HR may go: a console change
-  session.stats.cooldownFrom = before;
-  session.reason = `cool-down from ${before} ${a.unit}`;
-  log('info', `Cool-down starts at ${before} ${a.unit}, not ${base}: the previous step ended there`);
+  const up = from > base && !step.cooldown && !(session.alphaGuard && alphaVetoApplies(step));
+  if (from === base || (from > base && !up)) return;
+  // A new base, not an HR adjustment: HR keeps its whole range from here, and a cap gives nothing back
+  session.hrAdjust = 0;
+  session.adjust = roundTo(from - base, a.decimals);
+  if (step.cooldown) session.stats.cooldownFrom = from;
+  session.reason = `${step.cooldown ? 'cool-down' : `Z${step.zoneStart}`} from ${from} ${a.unit}`;
+  log('info', `${step.cooldown ? 'Cool-down starts' : `Starts`} at ${from} ${a.unit}, not ${base}: ${step.cooldown ? 'the previous step ended there' : `the last step in Z${step.zoneStart} ended there`}`);
 }
 
 /** Sends the current step's targets: speed and incline on a treadmill, power on a trainer. */
