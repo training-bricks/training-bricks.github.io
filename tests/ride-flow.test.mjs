@@ -2,6 +2,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { startSession } from './session/harness.mjs';
+import { flatSpeed, RIDER_KG_DEFAULT } from '../src/physiology/ride-speed.js';
+import * as app from '../src/state.js';
 
 /** A bike step in ERG: watts { lo, hi } (steady: the middle), power zone, optional HR range. */
 const rideStep = (o) => ({ label: o.label ?? 'Step', duration: 600, hasTarget: false, speedStart: null, speedEnd: null, incline: 0, power: { lo: 130, hi: 140 }, zone: 2, hr: null, ...o });
@@ -96,4 +98,25 @@ test('ride: the cool-down starts no harder than the main step ended', () => {
   assert.equal(h.session.targetPower, ended);
   h.run(200, { hr: 110 });
   assert.ok(h.powers().filter((x) => x.at > 300).every((x) => x.power <= ended), 'and no give-back');
+});
+
+test('ride (2026-11-05): speed and distance come from the watts and the rider\'s weight, not the trainer\'s flywheel', () => {
+  app.setAthlete(null);
+  app.setWellness(null);
+  const h = startSession({ sport: 'ride', steps: [rideStep({ duration: 60, power: { lo: 200, hi: 200 } })] });
+  h.run(30);                                     // the harness trainer reports 30 km/h whatever the watts
+  const s = h.session.samples.at(-1);
+  assert.equal(s.speed, flatSpeed(200, RIDER_KG_DEFAULT));
+  assert.ok(s.speed > 32 && s.speed < 36, `${s.speed} km/h`);
+  assert.ok(h.session.totalDist > 0);
+});
+
+test('ride-speed: about 28–29 km/h for 134 W at 89.8 kg; nothing without watts; heavier is slower, more watts faster', () => {
+  const v = flatSpeed(134, 89.8);
+  assert.ok(v > 28 && v < 29.5, `${v} km/h`);
+  assert.equal(flatSpeed(0), 0);
+  assert.equal(flatSpeed(null), 0);
+  assert.ok(flatSpeed(200, 100) < flatSpeed(200, 60));
+  assert.ok(flatSpeed(250) > flatSpeed(200));
+  assert.equal(flatSpeed(150, 0), flatSpeed(150), 'no weight: the default');
 });

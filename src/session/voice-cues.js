@@ -3,10 +3,9 @@
  * in the interface language, and which setting each belongs to. No DOM and no
  * speech: lib/speech.js says it.
  *
- * Cues: { kind: 'next', step, factor }, { kind: 'countdown', n }, { kind: 'hr', delta, unit },
+ * Cues: { kind: 'next', step, factor, offset, speed }, { kind: 'countdown', n }, { kind: 'hr', delta, unit },
  * { kind: 'alpha', on }, { kind: 'paused' | 'resumed' | 'end' }, { kind: 'link', state }.
  */
-import { formatPace } from '../workouts/format.js';
 import { formatNumber } from '../i18n/format.js';
 import { t } from '../i18n/index.js';
 import { powerAt } from './policies.js';
@@ -29,16 +28,25 @@ function lengthText(step) {
   return step.distance ? t('voice.meters', { n: step.distance }) : '';
 }
 
-/** "171 watts", "8:20", or '' for a free step. */
-function targetText(step, factor) {
-  if (step.power) return t('voice.watts', { n: Math.round(powerAt(step, 0) * factor) });
-  if (step.hasTarget) return formatPace(step.speedStart * factor);
+/** "8 minutes 20 per kilometer": written as 8:20 a voice reads it as the time of day. */
+function paceText(kmh) {
+  const total = Math.round(3600 / kmh);
+  const sec = total % 60;
+  const min = t('voice.minutes', { n: (total - sec) / 60 });
+  return t('voice.pace', { pace: sec ? `${min} ${sec}` : min });
+}
+
+/** "171 watts", "8 minutes 20 per kilometer", or '' for a free step. offset: what it starts over the plan; speed: a step with no plan. */
+function targetText(step, factor, offset, speed) {
+  if (step.power) return t('voice.watts', { n: Math.round(powerAt(step, 0) * factor + offset) });
+  if (speed) return paceText(speed);
+  if (step.hasTarget) return paceText(step.speedStart * factor + offset);
   return '';
 }
 
-function nextText({ step, factor = 1 }) {
+function nextText({ step, factor = 1, offset = 0, speed = null }) {
   const length = lengthText(step);
-  const target = targetText(step, factor);
+  const target = targetText(step, factor, offset, speed);
   const what = length && target ? t('voice.lengthAt', { length, target }) : length || target || t('common.free');
   return t('voice.next', { what });
 }

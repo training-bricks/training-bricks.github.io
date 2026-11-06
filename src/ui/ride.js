@@ -9,6 +9,7 @@
 import { $ } from '../lib/dom.js';
 import { live } from '../session/live.js';
 import { session, events as sessionEvents, currentStep, pushPower } from '../session/runner.js';
+import { rideSpeed } from '../session/policies.js';
 import { ownSession, selectedSport, updateSessionChart, renderCommon, updateSessionButtons, wireSessionButtons, linkNote } from './session-screen.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';

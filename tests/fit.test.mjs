@@ -157,3 +157,14 @@ test('export: the shared climb gives TCX and FIT the same altitude', () => {
   const fit = of(decodeFit(buildFit(samples, { steps: STEPS })), 20).map((r) => r[2] / 5 - 500);
   assert.ok(Math.abs(alts[100] - fit[100]) < 0.2);
 });
+
+test('fit/tcx (2026-11-05): a ride carries its calories (kcal ≈ kJ of work); a run leaves them unset', () => {
+  const samples = Array.from({ length: 61 }, (_, i) => ({ t: T0 + i * 1000, elapsed: i, distance: i * 8, speed: 28.8, hr: null, power: 150 + i, cadence: 90, step: 1 }));
+  const m = decodeFit(buildFit(samples, { sport: 'ride', steps: [{ kind: 'Work', zone: 2 }] }));
+  assert.equal(of(m, 18)[0][11], 11);           // 61 s at 180 W on average = 10.98 kJ
+  assert.equal(of(m, 19)[0][11], 11);
+  assert.match(buildTcx(samples, { sport: 'ride' }), /<Calories>11<\/Calories>/);
+  const run = decodeFit(buildFit(runSamples(), { sport: 'run', steps: STEPS }));
+  assert.equal(of(run, 18)[0][11], 0xffff, 'no power: the invalid value');
+  assert.match(buildTcx(runSamples()), /<Calories>0<\/Calories>/);
+});

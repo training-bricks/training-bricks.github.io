@@ -5,9 +5,17 @@
  * treadmill, power on a smart trainer.
  */
 import { live, STALE_MS } from './live.js';
+import { flatSpeed } from '../physiology/ride-speed.js';
+import * as app from '../state.js';
 
 const MOVING_KMH = 0.5;    // treadmill: above this the belt is moving
 const PEDALING_RPM = 20;   // trainer: above this the rider is pedaling
+
+/** The athlete's latest weight from Intervals.icu (wellness, then the account), or null. */
+export const riderKg = () => app.state.wellness?.weight?.value ?? app.state.athlete?.weight ?? null;
+
+/** Ride speed: from the watts on a flat road, not the trainer's flywheel (physiology/ride-speed.js). */
+export const rideSpeed = () => flatSpeed(live.trainer?.power ?? 0, riderKg() ?? undefined);
 
 export const POLICIES = {
   run: {
@@ -24,8 +32,8 @@ export const POLICIES = {
     sport: 'ride',
     kind: 'trainer',
     moving: () => (live.trainer?.cadence ?? 0) >= PEDALING_RPM,
-    speed: () => live.trainer?.speed ?? 0,
-    sample: () => ({ speed: live.trainer?.speed ?? 0, power: live.trainer?.power ?? null, cadence: live.trainer?.cadence ?? null }),
+    speed: rideSpeed,
+    sample: () => ({ speed: rideSpeed(), power: live.trainer?.power ?? null, cadence: live.trainer?.cadence ?? null }),
     resetStale: () => { if (live.trainer) live.trainer = { ...live.trainer, cadence: 0, speed: 0, power: 0 }; },
     hrSteerable: true, // HR on watts in ERG (#8)
     words: { started: 'Pedaling: session started', stopped: 'Pedaling stopped: session paused', resumed: 'Pedaling: session resumed', done: 'ride.note.complete' },
