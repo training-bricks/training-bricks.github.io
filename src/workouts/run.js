@@ -92,6 +92,8 @@ export function runTargets(step, { position = 'mid', zones = null, hrTargets = f
   let hr = null;
   let hrLabel = '';
   let zone = null;
+  let zoneStart = null;
+  let zoneEnd = null;
   const hrRange = hrTargetRange(zones, step.hr, step._hr);
   if (hrRange) {
     const z = hrZoneOf(zones, Math.round((hrRange.lo + hrRange.hi) / 2));
@@ -99,6 +101,8 @@ export function runTargets(step, { position = 'mid', zones = null, hrTargets = f
     // A ramp climbs from the bottom of its range to the top, zone by zone
     const zFrom = step.ramp ? hrZoneOf(zones, hrRange.lo) : z;
     const zTo = step.ramp ? hrZoneOf(zones, hrRange.hi) : z;
+    zoneStart = zFrom;
+    zoneEnd = zTo;
     if (speedStart == null) {
       // Starting speed: the pace zone in the same position
       speedStart = zoneSpeed(zones, zFrom, position);
@@ -130,5 +134,5 @@ export function runTargets(step, { position = 'mid', zones = null, hrTargets = f
     (speedStart != null ? t('step.pace', { pace: formatPace(speedStart) }) : step.hr ? t('step.hrTarget') : t('common.free'));
   const walk = speedStart != null && isWalk(step);
   if (walk) speedStart = speedEnd = WALK_KMH;
-  return { speedStart, speedEnd, hr, zone, label, walk, intensity: paceIntensity(step) };
+  return { speedStart, speedEnd, hr, zone, zoneStart: zoneStart ?? zone, zoneEnd: zoneEnd ?? zone, label, walk, intensity: paceIntensity(step) };
 }
