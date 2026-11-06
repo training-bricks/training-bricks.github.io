@@ -3,9 +3,9 @@
    --accent: selection, links and focus; --highlight: what to press first (primary
    buttons) and small marks. The light palette is the icon's: cream, navy and orange. */
 :root {
-  --bg: #fff4e3;
-  --surface: #fffaf2;
-  --surface-2: #fbecd6;
+  --bg: #fffcf7;
+  --surface: #fff4e3;
+  --surface-2: #fbe8cc;
   --border: #ecdcc0;
   --text: #0b2a5b;
   --muted: #5b6b84;
