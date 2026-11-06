@@ -15,6 +15,7 @@ export const SETTINGS = {
   wellness:     { type: 'json' },                       // latest weight, sleep, resting HR, HRV
   tests:        { type: 'json', fallback: [] },         // threshold test history
   runs:         { type: 'json', fallback: [] },         // steady aerobic runs with their metrics (#4)
+  closing:      { type: 'json' },                       // how far the pause got when the page last closed (#61)
   libFilter:    { type: 'json', fallback: {} },         // library filters
   tab:          { type: 'text' },                       // last tab or page shown
   workout:      { type: 'text' },                       // last library workout picked

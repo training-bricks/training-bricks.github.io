@@ -819,17 +819,16 @@ export const announceLink = (state) => cue({ kind: 'link', state });
 /** Whether a session needs this device now: its treadmill or trainer, or the strap. */
 export const needsDevice = (kind) => isActive() && (kind === 'hr' || kind === policy().kind);
 
-// Closing or reloading the page during an active workout pauses the belt.
-// It happens on beforeunload (while the browser asks whether to leave there
-// is time for the command to arrive) and again on pagehide in case nobody
-// was asked (ui/run.js wires both). If you stay, the session remains paused:
-// START on the console resumes it.
+// Closing or reloading the page during an active workout asks the belt to
+// pause, on beforeunload and again on pagehide (ui/run.js wires both). It may
+// not get there: on 2026-11-04 a reload left the belt running (#61).
+// If you stay, the session remains paused: START on the console resumes it.
 let unloadPausedAt = 0;
-export function pauseOnClose() {
+export function pauseOnClose(onProgress) {
   // Also while the belt slows down after the end: nobody will be there to pause it
   if ((!isActive() && !slowdown) || !device()?.connected) return;
   slowdown = null;
   if (Date.now() - unloadPausedAt < 1000) return;
   unloadPausedAt = Date.now();
-  device().pauseNow();
+  device().pauseNow(onProgress);
 }

@@ -9,6 +9,7 @@ import { $ } from '../lib/dom.js';
 import { formatPace, searchesSpeed } from '../workouts/steps.js';
 import { live } from '../session/live.js';
 import { session, events as sessionEvents, isActive, currentStep, pushTarget, pauseOnClose } from '../session/runner.js';
+import { noteClosing, noteClosingProgress, takeLastClosing } from '../session/closing.js';
 import { wakeError, requestWakeLock, releaseWakeLock, initWakeLock } from '../session/wake-lock.js';
 import { beep } from '../lib/sound.js';
 import { countdownSpoken } from './voice.js';
@@ -131,10 +132,16 @@ export function initRun() {
   // Closing or reloading the page during a workout pauses the belt (see session/runner.js)
   window.addEventListener('beforeunload', (e) => {
     if (!isActive()) return;
-    pauseOnClose();
+    noteClosing('beforeunload', live.speed);
+    pauseOnClose(noteClosingProgress);
     e.preventDefault();
   });
-  window.addEventListener('pagehide', pauseOnClose);
+  window.addEventListener('pagehide', () => {
+    if (isActive()) noteClosing('pagehide', live.speed);
+    pauseOnClose(noteClosingProgress);
+  });
+  const lastClose = takeLastClosing();
+  if (lastClose) log('warn', lastClose);
 
   app.on('selection', () => {
     render();

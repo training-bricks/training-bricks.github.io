@@ -96,7 +96,7 @@ export default {
 
   // run
   'run.safety': 'Seguridad',
-  'run.safetyText': 'Arranca la banda desde la consola, con la llave de seguridad puesta. El botón ■ (terminar) y el final del entrenamiento bajan la banda hasta su velocidad mínima y luego la pausan, pero si algo sale mal usa STOP en la consola o quita la llave.',
+  'run.safetyText': 'Arranca la banda desde la consola, con la llave de seguridad puesta. El botón ■ (terminar) y el final del entrenamiento bajan la banda hasta su velocidad mínima y luego la pausan, pero si algo sale mal usa STOP en la consola o quita la llave. Recargar o cerrar la página puede dejar la banda en marcha: detenla desde la consola.',
   'run.gotIt': 'Entendido',
   'run.sessionControls': 'Controles de la sesión',
   'run.distance': 'Distancia',

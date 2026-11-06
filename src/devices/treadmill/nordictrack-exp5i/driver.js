@@ -136,14 +136,17 @@ export class Exp5iTreadmill extends Treadmill {
    * Pauses without waiting for the polling cycle, for when the page closes:
    * requests it the normal way and also writes the message right away. The
    * direct write may collide with an ongoing poll; if it fails, the normal
-   * request remains (if the page lives long enough).
+   * request remains (if the page lives long enough). onProgress(written,
+   * total, error) tells how far the message got (#61).
    */
-  pauseNow() {
+  pauseNow(onProgress = () => {}) {
     this.pause();
     if (!this.writeChar) return;
     const packets = buildWriteAndRead({ 12: MODE.PAUSE });
     this.onLog('info', 'Page closing: immediate pause');
-    packets.reduce((p, pkt) => p.then(() => this._writeFn(pkt)), Promise.resolve()).catch(() => {});
+    onProgress(0, packets.length);
+    packets.reduce((p, pkt, i) => p.then(() => this._writeFn(pkt)).then(() => onProgress(i + 1, packets.length)), Promise.resolve())
+      .catch((err) => onProgress(null, packets.length, err));
   }
 
   diagnostics() {
