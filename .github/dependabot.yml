@@ -1,0 +1,7 @@
+# The app has no package dependencies; only the workflows' actions get version updates
+version: 2
+updates:
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
