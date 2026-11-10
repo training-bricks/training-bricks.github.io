@@ -206,6 +206,60 @@ test('flow: a step starts where the last step in its zone ended; a zone not run 
   assert.equal(plain.speeds().at(-1).speed, 8.5, 'no HR: the plan stands');
 });
 
+test('flow: reps and rests with a pace of their own start from their plan; a 1 min rep has no cap (2026-11-10)', () => {
+  const rep = runStep({ label: 'Rep', speedStart: 10, speedEnd: 10, duration: 60, zone: 4, zoneStart: 4, zoneEnd: 4, hr: { lo: 159, hi: 168, mode: 'cap' } });
+  const rest = runStep({ label: 'Rest', speedStart: 7, speedEnd: 7, duration: 120, zone: 1, zoneStart: 1, zoneEnd: 1, hr: { lo: 0, hi: 134, mode: 'cap' } });
+  const h = startSession({ steps: [rep, rest, rep, rest, rep, rest], hrOn: true });
+  const starts = [];
+  for (let i = 0; i < 3; i++) {
+    h.run(2, { hr: 176 });
+    starts.push(h.session.target);
+    h.run(58, { hr: 176 });                               // HR over the cap the whole rep
+    h.run(2, { hr: 160 });
+    starts.push(h.session.target);
+    h.run(118, { hr: 160 });                              // and over Z1 the whole rest, level: it comes down
+  }
+  assert.deepEqual(starts, [10, 7, 10, 7, 10, 7]);
+  const inReps = h.speeds().filter((x) => [0, 180, 360].some((t) => x.at > t + 1 && x.at < t + 60));
+  assert.deepEqual(inReps, [], 'no cap in a 1 min rep');
+  assert.ok(h.speeds().some((x) => x.at > 61 && x.at < 180 && x.speed < 7), 'a rest with HR level over Z1 still slows down');
+});
+
+test('flow: a rest does not slow down while HR is still coming down from the rep (2026-11-10)', () => {
+  const rest = runStep({ label: 'Rest', speedStart: 7, speedEnd: 7, duration: 300, zone: 1, zoneStart: 1, zoneEnd: 1, hr: { lo: 0, hi: 134, mode: 'cap' } });
+  const h = startSession({ steps: [rest], hrOn: true });
+  h.run(120, { hr: (t) => 175 - 0.12 * t });              // 7 bpm/min down, still over Z1
+  assert.equal(h.speeds().length, 1, 'HR falling: the rest is working');
+  h.run(120, { hr: 160 });                                // level over Z1
+  assert.ok(h.speeds().at(-1).speed < 7);
+});
+
+test('flow: the cool-down starts where the last step in its zone ended, not at the slower rest before it (2026-11-10)', () => {
+  const warmup = runStep({ label: 'Warm-up', speedStart: 8.5, speedEnd: 8.5, duration: 300, zone: 2, zoneStart: 2, zoneEnd: 2, hr: { lo: 135, hi: 150, mode: 'cap' } });
+  const rest = runStep({ label: 'Rest', speedStart: 5, speedEnd: 5, duration: 120, zone: 1, zoneStart: 1, zoneEnd: 1, hr: { lo: 0, hi: 134, mode: 'cap' } });
+  const cool = runStep({ label: 'Cool-down', cooldown: true, speedStart: 8, speedEnd: 8, duration: 300, zone: 2, zoneStart: 2, zoneEnd: 2, hr: { ...Z2, mode: 'target' } });
+  const h = startSession({ steps: [warmup, rest, cool], hrOn: true });
+  h.run(300, { hr: 160 });                                // over the cap: the warm-up comes down
+  const ended = h.session.samples.at(-1).target;
+  assert.ok(ended < 8 && ended > 5, `warm-up ended at ${ended}`);
+  h.run(122, { hr: 130 });
+  assert.equal(h.session.stepIdx, 2);
+  assert.equal(h.session.target, ended, 'from the warm-up, the last Z2');
+  assert.equal(h.session.stats.cooldownFrom, ended);
+});
+
+test('flow: once HR has taken all it may from a step, the athlete is told, once by voice (2026-11-10)', () => {
+  const cues = [];
+  const h = startSession({ steps: [runStep({ speedStart: 8.5, speedEnd: 8.5, duration: 900, hr: { lo: 135, hi: 150, mode: 'cap' } })], hrOn: true });
+  runner.events.on('cue', (c) => cues.push(c.kind));     // the emitter has no off: a test listening later only adds
+  h.run(300, { hr: 158 });
+  assert.equal(h.session.hrAdjust, -2);
+  assert.equal(h.session.hrAtLimit, true);
+  assert.deepEqual(cues.filter((k) => k === 'hr-limit'), ['hr-limit']);
+  h.run(60, { hr: 140 });                                 // HR back under: the note goes away
+  assert.equal(h.session.hrAtLimit, false);
+});
+
 test('csv (#10): step, HR range, HR adjustment and the reason of each change', () => {
   const h = startSession({ steps: [runStep({ hr: Z2 })], hrOn: true });
   h.run(80, { hr: 160 });

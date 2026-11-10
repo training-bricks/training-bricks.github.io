@@ -4,14 +4,14 @@
  * speech: lib/speech.js says it.
  *
  * Cues: { kind: 'next', step, factor, offset, speed }, { kind: 'countdown', n }, { kind: 'hr', delta, unit },
- * { kind: 'alpha', on }, { kind: 'paused' | 'resumed' | 'end' }, { kind: 'link', state }.
+ * { kind: 'hr-limit', unit }, { kind: 'alpha', on }, { kind: 'paused' | 'resumed' | 'end' }, { kind: 'link', state }.
  */
 import { formatNumber } from '../i18n/format.js';
 import { t } from '../i18n/index.js';
 import { powerAt } from './policies.js';
 
 /** The setting that turns each kind of cue on or off. */
-export const CUE_GROUPS = { next: 'next', countdown: 'countdown', hr: 'hr', alpha: 'alpha', paused: 'state', resumed: 'state', end: 'state', link: 'link' };
+export const CUE_GROUPS = { next: 'next', countdown: 'countdown', hr: 'hr', 'hr-limit': 'hr', alpha: 'alpha', paused: 'state', resumed: 'state', end: 'state', link: 'link' };
 export const GROUPS = ['next', 'countdown', 'hr', 'alpha', 'state', 'link'];
 
 // Seconds a cue may wait for its turn: a countdown is useless a second later
@@ -66,6 +66,7 @@ export function cueText(cue) {
     case 'next': return nextText(cue);
     case 'countdown': return String(cue.n);
     case 'hr': return hrText(cue);
+    case 'hr-limit': return t(cue.unit === 'W' ? 'voice.hrLimitPower' : 'voice.hrLimit');
     case 'alpha': return t(cue.on ? 'voice.alphaOn' : 'voice.alphaOff');
     case 'paused': return t('voice.paused');
     case 'resumed': return t('voice.resumed');
