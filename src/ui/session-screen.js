@@ -19,9 +19,11 @@ import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswe
 import { live, rrState, rrActive, hrNow } from '../session/live.js';
 import { session, events as sessionEvents, applyStep, start, endSession, cancel, setIntensity, currentStep, searching } from '../session/runner.js';
 import { intensityFactor, INTENSITY_MIN, INTENSITY_MAX } from '../session/policies.js';
+import { SPEED, POWER } from '../session/hr-control.js';
 import { log } from './debug.js';
 import * as app from '../state.js';
 import { t } from '../i18n/index.js';
+import { formatNumber } from '../i18n/format.js';
 
 /** Estimated duration of a step (distance steps are converted with their target). */
 function plannedSeconds(step) {
@@ -73,12 +75,17 @@ export const ownSession = (sport) => session.state !== 'idle' && session.policy?
 
 const DEVICE_OF = { run: 'treadmill', ride: 'trainer' };
 
-/** The note when this page's device is gone during its session (#36, #37), or ''. */
+/**
+ * The note when this page's device is gone during its session (#36, #37),
+ * when HR is lost, or when HR has taken all it may from a step; or ''.
+ */
 export function linkNote(kind) {
   if (!ownSession(kind === 'trainer' ? 'ride' : 'run') || !['running', 'paused'].includes(session.state)) return '';
   if (live.link[kind] === 'reconnecting') return t('session.reconnecting');
   if (!app.state.devices[kind]?.connected) return t('session.linkLost');
-  return session.hrLostTold ? t(session.hrFellBack ? 'session.hrLostPlan' : 'session.hrLost') : '';
+  if (session.hrLostTold) return t(session.hrFellBack ? 'session.hrLostPlan' : 'session.hrLost');
+  if (session.hrAtLimit) return kind === 'trainer' ? t('session.hrLimitPower', { value: POWER.maxDown }) : t('session.hrLimit', { value: formatNumber(SPEED.maxDown, { decimals: 1 }) });
+  return '';
 }
 
 /** The chart of a page: the plan (or the session's) with its samples. */

@@ -27,6 +27,10 @@
  *   - drop: speed goes down, but not in the warm-up nor with HR in Z1, where
  *     α1 is not in steady state.
  *   Neither acts in the cool-down, which already slows down.
+ * - A recovery (a Z1 step) does not slow down while HR is still coming down
+ *   from the effort before it: in 2 min it rarely gets under the top of Z1,
+ *   and on 2026-11-10 a rest went from 7 to 5.5 km/h with HR falling from
+ *   175 to 162. Once HR levels off over the top, it does.
  */
 
 import { VT1 } from '../physiology/hrv.js';
@@ -98,6 +102,7 @@ export function hrTrend(samples) {
  *   alphaVeto: α1 is below VT1 on an aerobic step: no rise.
  *   alphaDrop: and speed should come down for it (see alphaDropApplies).
  *   giveBack: a capped step may return what HR took (not in the cool-down).
+ *   recovery: a Z1 step: no drop, for HR or α1, while HR is falling.
  *   aim: where in the range an HR target aims (0 = bottom, 0.5 = middle).
  *   project: HR is rising, so it counts ahead with the slope (see hrTrend).
  *   search: the step has no planned speed. Far under the aim the projected HR
@@ -105,10 +110,11 @@ export function hrTrend(samples) {
  * @param actuator SPEED (default) or POWER
  * @returns {{delta: number, reason: string, alpha: boolean, far?: boolean}} alpha: the change is the α1 drop. far: a search rise, far under the aim.
  */
-export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = false, alphaDrop = false, giveBack = true, aim = 0.5, search = false, project = true }, actuator = SPEED) {
+export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = false, alphaDrop = false, giveBack = true, recovery = false, aim = 0.5, search = false, project = true }, actuator = SPEED) {
   const a = actuator;
   const projected = hr + (project ? Math.max(0, slope) * LEAD_S : 0);
   const climbing = slope > RISING;
+  const settling = recovery && slope < -RISING;
   let delta = 0;
   let reason = '';
   let far = false;
@@ -128,7 +134,7 @@ export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = fals
       reason = `HR → ${Math.round(projected)}, aiming at ${Math.round(goal)}`;
     }
   } else if (mode === 'cap') {
-    if (projected > hi) {
+    if (projected > hi && !settling) {
       delta = -stepFor(projected - hi, a);
       reason = `HR → ${Math.round(projected)}, cap ${hi}`;
     } else if (giveBack && hrAdjust < 0 && hr < hi - CAP_MARGIN && slope <= 0 && !alphaVeto) {
@@ -138,7 +144,7 @@ export function hrDecision({ mode, lo, hi, hr, slope, hrAdjust, alphaVeto = fals
   }
 
   let alpha = false;
-  if (alphaDrop && delta >= 0) {
+  if (alphaDrop && delta >= 0 && !settling) {
     delta = -a.alphaStep;
     reason = `α1 below ${VT1} with HR ${hr}`;
     alpha = true;
