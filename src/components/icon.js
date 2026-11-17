@@ -16,6 +16,7 @@ const ICONS = {
   time: '<circle cx="12" cy="13" r="8"/><path d="M12 9v4l2.5 2.5M9.5 2.5h5"/>',
   heart: '<path d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"/>',
   play: '<path class="fill" d="M8 5.5v13l10.5-6.5z"/>',
+  pause: '<path class="fill" d="M7 5.5h3.5v13H7zM13.5 5.5H17v13h-3.5z"/>',
   skip: '<path class="fill" d="M5.5 5.5v13L15 12z"/><path d="M18 5.5v13"/>',
   stop: '<rect class="fill" x="6.5" y="6.5" width="11" height="11" rx="1.5"/>',
   download: '<path d="M12 4v11M7.5 10.5L12 15l4.5-4.5M5 19.5h14"/>',

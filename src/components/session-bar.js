@@ -1,7 +1,7 @@
 /**
  * <bw-session-bar>: the half of the session dashboard Run and Ride share:
- * distance, time, HR and α1, and the session buttons (▶ start, ⏭ skip step,
- * ■ finish, download CSV/FIT/TCX, upload to Intervals.icu). It only draws them;
+ * distance, time, HR and α1, and the session buttons (▶ start / ⏸ pause, ⏭ skip
+ * step, ■ finish, download CSV/FIT/TCX, upload to Intervals.icu). It only draws them;
  * ui/session-screen.js fills the values and wires the buttons. Its parts
  * are found by name in .el (no ids, so both pages can hold one). The export
  * menu's popover id comes from the element's id ("<id>-export").

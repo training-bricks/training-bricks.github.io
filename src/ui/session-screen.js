@@ -17,7 +17,8 @@ import * as settings from '../lib/settings.js';
 import { uploadDescription } from '../session/summary.js';
 import { RPE_VALUES, FEEL_VALUES, rpeLabel, feelLabel, feedbackFields, pickAnswer } from '../session/feedback.js';
 import { live, rrState, rrActive, hrNow } from '../session/live.js';
-import { session, events as sessionEvents, applyStep, start, endSession, cancel, setIntensity, currentStep, searching } from '../session/runner.js';
+import { session, events as sessionEvents, applyStep, start, endSession, cancel, pause, resume, setIntensity, currentStep, searching } from '../session/runner.js';
+import { confirmBox } from './confirm.js';
 import { intensityFactor, INTENSITY_MIN, INTENSITY_MAX } from '../session/policies.js';
 import { log } from './debug.js';
 import * as app from '../state.js';
@@ -127,10 +128,17 @@ function renderAlpha(el) {
 export function updateSessionButtons(el, sport, { canStart, finishLabel }) {
   const active = ['armed', 'running', 'paused'].includes(session.state);
   const own = ownSession(sport);
-  el.start.disabled = !canStart || active;
-  const startLabel = app.state.selection ? t('run.startWorkout') : t('run.startFreeSession');
+  // ▶ starts, turns into ⏸ while running, and resumes a paused ride (a belt only restarts from the console)
+  const running = own && session.state === 'running';
+  const paused = own && session.state === 'paused';
+  const resumable = paused && session.policy.kind === 'trainer';
+  el.start.disabled = running || resumable ? false : paused || !canStart || active;
+  const startLabel = running ? t('session.pause') : resumable ? t('session.resume') : paused ? t('run.resumeConsole')
+    : app.state.selection ? t('run.startWorkout') : t('run.startFreeSession');
   el.start.title = startLabel;
   el.start.setAttribute('aria-label', startLabel);
+  const icon = el.start.querySelector('bw-icon');
+  if (icon.getAttribute('name') !== (running ? 'pause' : 'play')) icon.setAttribute('name', running ? 'pause' : 'play');
   el.skip.disabled = !(own && session.steps.length && (session.state === 'running' || session.state === 'paused'));
   el.finish.disabled = !(own && active);
   el.reconnect.classList.toggle('hidden', !(own && active && live.link.hr === 'stuck'));
@@ -189,13 +197,23 @@ const fileStamp = () => new Date(session.startedAt).toISOString().slice(0, 16).r
  * page's note line (upload progress).
  */
 export function wireSessionButtons(el, { sport, endNote, upload, note }) {
-  el.start.onclick = () => start({ sport });
+  el.start.onclick = async () => {
+    if (session.state === 'running') { pause(); return; }
+    if (session.state === 'paused') { resume(); return; }
+    // A finished session not saved anywhere would be lost
+    const unsaved = session.state === 'done' && session.samples.length > 0 && !session.uploaded && !session.exported;
+    if (unsaved && !await confirmBox({ title: t('session.discardTitle'), text: t('session.discardText'), ok: t('session.discard'), cancel: t('common.cancel') })) return;
+    start({ sport });
+  };
   el.skip.onclick = () => {
     if (session.state === 'running' || session.state === 'paused') applyStep(session.stepIdx + 1);
   };
-  el.finish.onclick = () => {
+  // ■ pauses first and asks: ending cannot be undone, keeping it paused can
+  el.finish.onclick = async () => {
     if (session.state === 'armed') { cancel(); return; }
-    endSession(t(endNote)); // a treadmill slows down to a walk first; a trainer is released
+    pause();
+    const end = await confirmBox({ title: t('session.endTitle'), text: t(`${sport}.endConfirm`), ok: t('session.end'), cancel: t('session.keepPaused') });
+    if (end && ['running', 'paused'].includes(session.state)) endSession(t(endNote)); // a treadmill slows down to a walk first; a trainer is released
   };
 
   el.reconnect.onclick = () => document.dispatchEvent(new Event('bw-reconnect-strap')); // ui/devices.js
@@ -221,16 +239,19 @@ export function wireSessionButtons(el, { sport, endNote, upload, note }) {
     el.menu.hidePopover();
     if (!session.samples.length) return;
     download(`brickwise-${fileStamp()}.csv`, samplesToCsv(session.samples), 'text/csv');
+    session.exported = true;
   };
   const fitFile = (meta) => buildFit(session.samples, { sport, steps: session.steps, name: meta.name, deviceName: meta.device_name });
   el.fit.onclick = () => {
     el.menu.hidePopover();
     download(`brickwise-${fileStamp()}.fit`, fitFile(upload()), 'application/vnd.ant.fit');
+    session.exported = true;
   };
   el.tcx.onclick = () => {
     el.menu.hidePopover();
     const tcx = buildTcx(session.samples, { name: upload().name, sport });
     download(`brickwise-${fileStamp()}.tcx`, tcx, 'application/vnd.garmin.tcx+xml');
+    session.exported = true;
   };
 
   el.upload.onclick = async () => {
