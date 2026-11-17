@@ -120,3 +120,23 @@ test('ride-speed: about 28–29 km/h for 134 W at 89.8 kg; nothing without watts
   assert.ok(flatSpeed(250) > flatSpeed(200));
   assert.equal(flatSpeed(150, 0), flatSpeed(150), 'no weight: the default');
 });
+
+test('ride: ⏸ releases the trainer and holds the session while the rider pedals; ▶, or pedaling again, resumes with the watts', () => {
+  const h = startSession({ sport: 'ride', steps: [rideStep({ duration: 600 })] });
+  h.run(60);
+  h.runner.pause();
+  assert.equal(h.session.state, 'paused');
+  assert.ok(h.sent.at(-1).stop, 'the trainer is released');
+  h.run(20);                                              // still pedaling: stays paused
+  assert.equal(h.session.state, 'paused');
+  assert.equal(h.session.totalElapsed, 60);
+  assert.equal(h.runner.resume(), true);
+  assert.equal(h.session.state, 'running');
+  assert.equal(h.powers().at(-1).power, 135, 'the step\'s watts go again');
+
+  h.runner.pause();
+  h.run(3, { cadence: 0 });
+  h.run(2);                                               // stops and pedals again
+  assert.equal(h.session.state, 'running');
+  assert.equal(h.session.stats.pauses, 2);
+});

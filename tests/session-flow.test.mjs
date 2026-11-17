@@ -619,3 +619,40 @@ test('flow (2026-11-05): a ride step under 20 s asks the trainer for the quick r
   const asked = h.sent.filter((x) => x.power != null).map(({ power, quick }) => [power, quick]);
   assert.deepEqual(asked, [[120, false], [197, true], [120, false]]);
 });
+
+test('flow: ⏸ slows the belt down and pauses it; the session stays paused while it slows, and START on the console resumes it', () => {
+  const h = startSession({ steps: [runStep({ duration: 600, speedStart: 6, speedEnd: 6 })] });
+  h.run(60, { speed: 6 });
+  h.runner.pause();
+  assert.equal(h.session.state, 'paused');
+  assert.equal(h.session.stats.pauses, 1);
+  assert.equal(h.runner.resume(), false, 'a belt does not start from the page');
+  const t0 = h.sent.length;
+  h.run(30, { speed: 6 });                                // still slowing down: not a restart
+  assert.equal(h.session.state, 'paused');
+  assert.equal(h.session.totalElapsed, 60, 'the pause does not count');
+  assert.deepEqual(h.sent.slice(t0).filter((x) => x.speed != null).map((x) => x.speed), [5.5, 5, 4.5, 4, 3.5, 3, 2.5, 2, 1.5, 1, 0.8]);
+  assert.ok(h.sent.at(-1).pause, 'then the belt pauses');
+  h.run(5, { speed: 0 });
+  h.run(3, { speed: 1 });                                 // START on the console
+  assert.equal(h.session.state, 'running');
+  assert.equal(h.session.held, false);
+  assert.equal(h.sent.at(-1).speed, 6, 'the step\'s speed goes again');
+  assert.equal(h.session.stepIdx, 0, 'same step');
+  assert.ok(h.session.stepElapsed > 60);
+});
+
+test('flow: ■ after ⏸ goes on with the slow-down under way, from where it is', () => {
+  const h = startSession({ steps: [runStep({ duration: 600, speedStart: 6, speedEnd: 6 })] });
+  h.run(60, { speed: 6 });
+  h.runner.pause();
+  h.run(5, { speed: 6 });
+  const last = h.sent.filter((x) => x.speed != null).at(-1).speed;
+  h.runner.endSession('ended');
+  assert.equal(h.session.state, 'done');
+  const t0 = h.sent.length;
+  h.run(30, { speed: 6 });
+  const after = h.sent.slice(t0).filter((x) => x.speed != null).map((x) => x.speed);
+  assert.ok(after[0] < last, `no jump back up: ${last} → ${after}`);
+  assert.equal(h.sent.filter((x) => x.pause).length, 1);
+});

@@ -22,7 +22,7 @@ Runs your Intervals.icu workouts on a treadmill or a smart trainer over Bluetoot
   
   See [Threshold test and aerobic metrics](https://github.com/training-bricks/training-bricks.github.io/wiki/Threshold-test-and-aerobic-metrics).
 - **Output:** a live chart by zones, a second-by-second CSV with the reason for every change, FIT (one lap per step, RR) and TCX, and upload to Intervals.icu with a session summary, RPE and Feel. On a ride, speed and distance are the ones the watts would give on a flat road for your Intervals.icu weight (75 kg without one), not the trainer's flywheel, which follows cadence; calories are the kJ of work.
-- **During a session:** workout intensity (70–120 %), voice cues, automatic reconnection after a Bluetooth drop, and recovery after a reload or a closed tab.
+- **During a session:** ⏸ pause and ▶ resume, ■ that pauses and asks before ending, a warning before ▶ discards a finished session not yet saved, workout intensity (70–120 %), voice cues, automatic reconnection after a Bluetooth drop, and recovery after a reload or a closed tab.
 - **App:** an installable PWA that works offline, in English, Spanish and French, with light and dark palettes.
 
 ## Getting started
@@ -53,18 +53,18 @@ npm start            # python3 tools/serve.py 8000; open http://localhost:8000
    **Smart trainer:** on the **Ride** tab, go to the **Trainer** pill → **Connect smart trainer**, and close Zwift or other apps first.
 2. Optional: the **HRM** pill, for a strap. α1 needs a chest strap with RR intervals.
 3. Pick a workout in **Home** or the **Training library**, and press ▶ on its page (or start a free session).
-4. Press **▶ (start)**. On a treadmill, press START on the console. The session begins when the belt moves or you pedal, and it pauses when you stop.
+4. Press **▶ (start)**. On a treadmill, press START on the console. The session begins when the belt moves or you pedal, and it pauses when you stop. While it runs, ▶ turns into **⏸ (pause)**: a treadmill slows down and pauses (START on the console resumes), a trainer is released (▶ resumes). **■** pauses too and asks before ending the session.
 5. When done, upload to Intervals.icu or download the CSV / FIT / TCX.
 
 More in the [User guide](https://github.com/training-bricks/training-bricks.github.io/wiki/User-guide). Open the page with `?debug=true` for the simulators and the Debug tab ([Troubleshooting](https://github.com/training-bricks/training-bricks.github.io/wiki/Troubleshooting)).
 
 ## Safety
 - The belt is started only from the console, with the safety key attached (same as qdomyos-zwift with this model).
-- **■ (finish)**, and also the end of the workout's last step, **slow the belt down before pausing it**: never from running speed to 0 at once, which can make you stumble. The incline goes to 0 and the speed comes down 0.5 km/h every 2 s to the belt's lowest speed (8 km/h → 0.8 in 30 s on the EXP 5i), stays there 3 s, then the belt pauses (Mode = 3, like the console's pause button). At that speed or less it pauses right away. Pausing or stopping from the console during the slow-down ends it. From the console you can resume or finish. The EXP 5i rejects speed 0 with code 4, so it is not used. If the treadmill does not respond, STOP on the console or pulling the key is still required.
+- **⏸ (pause)**, **■ (finish)** and the end of the workout's last step **slow the belt down before pausing it**: never from running speed to 0 at once, which can make you stumble. The incline goes to 0 and the speed comes down 0.5 km/h every 2 s to the belt's lowest speed (8 km/h → 0.8 in 30 s on the EXP 5i), stays there 3 s, then the belt pauses (Mode = 3, like the console's pause button). At that speed or less it pauses right away. Pausing or stopping from the console during the slow-down ends it. From the console you can resume or finish. The EXP 5i rejects speed 0 with code 4, so it is not used. If the treadmill does not respond, STOP on the console or pulling the key is still required.
 - **Closing or reloading the page** during an active workout, or while the belt slows down after it, asks the belt to pause at once (Mode = 3), but **do not count on it**: a reload on the EXP 5i left the belt running (#61), and a browser that is killed sends nothing. Stop the belt from the console. If you stay on the page, the session remains paused and START on the console resumes it.
 - If the belt stops for more than 2 s, the session pauses. If the connection drops or data stops arriving, no distance is counted.
 - Speed is limited to 0.8–16 km/h and incline to 0–10 %.
-- **On a smart trainer**, ■ and the end of the workout release the trainer (no ERG load). Stopping pedaling for 2 s pauses the session.
+- **On a smart trainer**, ⏸, ■ and the end of the workout release the trainer (no ERG load). Stopping pedaling for 2 s pauses the session.
 - **The screen stays on** from ▶ until the session ends (Screen Wake Lock API). The browser drops the lock whenever the page is hidden, so it is requested again when you come back to it. If the browser cannot keep the screen on (no Wake Lock support, or battery saver mode), a note under the controls says so: turn off auto-lock in the device settings.
 
 ## Supported devices

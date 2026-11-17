@@ -125,7 +125,7 @@ export function resetSession() {
   Object.assign(session, {
     state: 'idle', steps: [], stepIdx: 0, stepElapsed: 0, stepDist: 0, totalElapsed: 0, totalDist: 0,
     adjust: 0, hrAdjust: 0, speedSentAt: null, hrOutSince: null, hrWantDir: 0, hrOn: false, hrOnly: false, hrLastAdjust: null, hrLastRise: null, carried: {}, hrSeen: false, hrLostAt: null, hrLostTold: false, hrFellBack: false, hrBackAt: null, hrLostInStep: false, zoneEnded: {}, inclineAdjust: 0, testStart: null, testEnd: null, testLowSince: null, testMarks: {}, alphaGuard: false, alphaLastDrop: null, reason: null, warmupHrSince: null, target: null, stopSince: null, samples: [], nextSample: 0, startedAt: null, event: null, lastBeep: null,
-    stepStarts: [], uploaded: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
+    stepStarts: [], uploaded: false, exported: false, held: false, policy: null, targetPower: null, rpe: null, feel: null, activityId: null, intensity: 100, stepIntensity: [], stats: emptyStats(), aerobic: null, testResult: null, testError: null,
   });
 }
 
@@ -297,7 +297,7 @@ function sendStep(force = false) {
 function stopDevice() {
   const d = device();
   if (policy().kind === 'trainer') d?.stop?.();
-  else slowDownToStop(d);
+  else if (!slowdown) slowDownToStop(d); // ■ after ⏸: the slow-down already under way goes on
 }
 
 /** Ends the session and stops the device (gently on a treadmill): the end of the workout and ■. */
@@ -448,6 +448,45 @@ export function restoreSession({ session: saved, sport, savedAt }) {
   changed();
 }
 
+/**
+ * ⏸, and ■ while it asks for confirmation: pauses a running session by hand.
+ * A treadmill slows down and pauses (it restarts only from the console, with
+ * the safety key); a trainer is released. The session stays paused while the
+ * belt is still slowing down or the rider keeps pedaling: it resumes with ▶
+ * (on a trainer) or once the belt or the pedals stop and move again.
+ */
+export function pause() {
+  if (session.state !== 'running') return;
+  session.state = 'paused';
+  session.held = true;
+  session.stopSince = null;
+  startPause(tick.last || Date.now());
+  cue({ kind: 'paused' });
+  log('info', 'Paused by hand');
+  stopDevice();
+  changed();
+}
+
+/** ▶ on a paused session: a trainer takes its watts again. A belt does not start from the page: false. */
+export function resume() {
+  if (session.state !== 'paused' || policy().kind !== 'trainer') return false;
+  resumeAt(tick.last || Date.now());
+  return true;
+}
+
+function resumeAt(now) {
+  slowdown = null;
+  session.state = 'running';
+  session.held = false;
+  session.stopSince = null;
+  endPause(now);
+  cue({ kind: 'resumed' });
+  rrState.pending = [];
+  log('info', policy().words.resumed);
+  if (currentStep()) sendStep(true);
+  changed();
+}
+
 /** Cancels a session that is armed but has not started (the belt never moved). */
 export function cancel() {
   if (session.state !== 'armed') return;
@@ -523,15 +562,8 @@ export function tick(now = Date.now()) {
     } else {
       session.stopSince = null;
     }
-  } else if (session.state === 'paused' && moving) {
-    session.state = 'running';
-    session.stopSince = null;
-    endPause(now);
-    cue({ kind: 'resumed' });
-    rrState.pending = [];
-    log('info', pol.words.resumed);
-    if (currentStep()) sendStep(true);
-    changed();
+  } else if (session.state === 'paused' && moving && (!session.held || restarted)) {
+    resumeAt(now);
   }
 
   if (session.state === 'running') {
